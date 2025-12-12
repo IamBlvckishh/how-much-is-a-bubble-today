@@ -1,49 +1,49 @@
-// api/cron-update.js - Final Code using Rarible API for Shape L2 Floor Price (Fixes 403 on both calls)
+// api/cron-update.js - Rarible Floor Price (SHAPE L2) + CoinGecko USD Conversion
 
-// ----------------------------------------------------
-// ENVIRONMENT VARIABLES: Ensure these are set in Vercel
-// ----------------------------------------------------
 const RARIBLE_API_KEY = process.env.RARIBLE_API_KEY; 
-
-// ----------------------------------------------------
-// CONFIGURATION: Set the Chain Slug and Contract Address
-// ----------------------------------------------------
 const CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8"; 
-const BLOCKCHAIN_GROUP = "SHAPE"; // Confirmed Slug for Shape L2
+const BLOCKCHAIN_GROUP = "SHAPE";
 const COLLECTION_ID = `${BLOCKCHAIN_GROUP}:${CONTRACT_ADDRESS}`;
 
-// Rarible Endpoint URLs
 const FLOOR_PRICE_URL = `https://api.rarible.org/v0.1/data/collections/${COLLECTION_ID}/floorPrice`;
-const USD_RATE_BASE_URL = `https://api.rarible.org/v0.1/data/currencies/${BLOCKCHAIN_GROUP}`;
-
+const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; // New, reliable endpoint
 
 /**
- * Helper function to make an authenticated Rarible fetch.
- * Uses the 'X-API-KEY' header and handles 403 errors.
+ * Helper function to make an authenticated Rarible fetch for Floor Price.
  */
-async function fetchRarible(url) {
-    // Crucial check: If the API key is not loaded from Vercel, throw an error
+async function fetchRaribleFloor(url) {
     if (!RARIBLE_API_KEY) {
-        throw new Error("API Key configuration error: RARIBLE_API_KEY is missing or blank. Please check Vercel settings.");
+        throw new Error("API Key configuration error: RARIBLE_API_KEY is missing.");
     }
     
     const response = await fetch(url, {
         method: 'GET',
         headers: { 
             'accept': 'application/json',
-            // FIX: Using the required custom header for API keys
-            'X-API-KEY': RARIBLE_API_KEY 
+            'X-API-KEY': RARIBLE_API_KEY // Authenticated
         }
     });
 
     if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Rarible API Error: ${response.status} - ${errorText}`);
-        // Return full error response to help debug permissions/key issues
         throw new Error(`Rarible API error: ${response.status}. Full response: ${errorText}`);
     }
-
     return response.json();
+}
+
+/**
+ * Helper function to fetch ETH/USD price from CoinGecko (No API Key required).
+ */
+async function fetchEthUsdPrice() {
+    try {
+        const response = await fetch(ETH_USD_CONVERSION_URL);
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.ethereum.usd;
+    } catch (error) {
+        console.error("Failed to fetch ETH/USD conversion:", error);
+        return null;
+    }
 }
 
 
@@ -53,41 +53,24 @@ export default async function handler(req, res) {
     return res.status(405).send({ message: 'Only GET or POST requests allowed' });
   }
   
-  console.log(`Starting floor price update using Rarible for ${COLLECTION_ID}...`);
+  console.log(`Starting floor price update for ${COLLECTION_ID}...`);
 
   try {
-    // 1. Fetch Floor Price (Authenticated)
-    const floorData = await fetchRarible(FLOOR_PRICE_URL);
-
+    // 1. Fetch Floor Price (from Rarible, Authenticated)
+    const floorData = await fetchRaribleFloor(FLOOR_PRICE_URL);
     const floorPriceValue = parseFloat(floorData.value);
     const currency = floorData.currency?.symbol || 'ETH';
     
-    // Check if a valid floor price was returned (prevents NaN errors)
-    if (isNaN(floorPriceValue) || floorPriceValue <= 0) {
-        const finalFloorData = {
-            price: '0.0000', 
-            currency: currency,
-            usd: 'N/A', 
-            lastUpdated: new Date().toISOString()
-        };
-        return res.status(200).json({ 
-            message: 'Floor price is zero or invalid. USD conversion skipped.',
-            data: finalFloorData
-        });
-    }
-
-    // 2. Fetch USD Conversion Rate (Authenticated - FIX for 403 on rate endpoint)
-    const usdRateURL = `${USD_RATE_BASE_URL}:${currency}/rates`;
-    
-    // *** CRITICAL FIX: Using the authenticated helper for the rate call ***
-    const rateData = await fetchRarible(usdRateURL); 
-    
-    const ethUsdRate = parseFloat(rateData.rate) || null; 
+    // 2. Fetch ETH/USD Conversion Rate (from CoinGecko, Unauthenticated)
+    const ethUsdRate = await fetchEthUsdPrice();
 
     // 3. Calculate Final Prices
     let floorPriceUSD = 'N/A';
-
-    if (ethUsdRate) {
+    
+    if (isNaN(floorPriceValue) || floorPriceValue <= 0) {
+        // If price is 0, we set a default USD N/A but confirm the ETH price is known.
+        console.log("Rarible returned floor price of 0. Collection may have no active listings.");
+    } else if (ethUsdRate) {
         floorPriceUSD = (floorPriceValue * ethUsdRate).toFixed(2);
     }
     
@@ -99,13 +82,12 @@ export default async function handler(req, res) {
     };
 
     return res.status(200).json({ 
-        message: 'Floor price and USD rate fetched successfully via Rarible.',
+        message: 'Floor price via Rarible. USD via CoinGecko.',
         data: finalFloorData
     });
 
   } catch (error) {
-    console.error("Error during floor price job (Rarible):", error);
-    // If there's an error in the fetchRarible function (e.g., 403), we return a 500 status.
+    console.error("Error during floor price job:", error);
     return res.status(500).json({ message: `Failed to fetch price: ${error.message}` });
   }
 }
