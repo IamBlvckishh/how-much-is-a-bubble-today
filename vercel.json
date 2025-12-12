@@ -7,7 +7,7 @@
   ],
   "build": {
     "env": {
-      "MORALIS_API_KEY": "@moralis_api_key"
+      "MORALIS_API_KEY": "@MORALIS_API_KEY"
     }
   }
 }
