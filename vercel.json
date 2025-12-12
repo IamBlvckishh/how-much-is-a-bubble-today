@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron-update",
+      "schedule": "0 12 * * *" 
+      // This schedule is set to run once daily at 12:00 PM (Noon) UTC.
+      // You can change this schedule using standard cron syntax if needed.
+    }
+  ],
+  "build": {
+    "env": {
+      // This is just a placeholder. The real environment variable must be set on Vercel.
+      "MORALIS_API_KEY": "@moralis_api_key"
+    }
+  }
+}
