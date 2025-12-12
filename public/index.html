@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Much is a Bubble Today</title>
+    <style>
+        /* General Black and White Theme */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            padding: 0; 
+            margin: 0;
+            background-color: #000; /* Black background */
+            color: #fff; /* White text */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Bubble Container Styling */
+        .bubble {
+            width: 300px;
+            height: 300px;
+            background: #fff; /* White circle background */
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); /* Subtle white glow */
+            margin: 40px 0;
+        }
+
+        .title {
+            color: #fff;
+            margin-bottom: 20px;
+        }
+
+        /* Price Formatting */
+        #usd-price-container {
+            font-weight: bold;
+            color: #000; /* Black text inside the white bubble */
+            margin-bottom: 5px;
+        }
+        #usd-price { 
+            font-size: 3.5em; /* Bigger font for USD price */
+            line-height: 1.1;
+        }
+        #usd-currency {
+            font-size: 0.5em; /* Small "USD" label */
+            display: block;
+        }
+
+        #eth-price-container {
+            color: #333; /* Darker grey for ETH price */
+            font-weight: bold;
+            font-size: 1.5em; /* Bold but smaller than USD */
+        }
+        
+        #last-updated { 
+            color: #999; 
+            font-size: 0.9em; 
+            margin-top: 20px;
+        }
+
+        /* Button Styling */
+        .refresh-btn {
+            padding: 10px 20px;
+            background: #000;
+            color: #fff;
+            border: 2px solid #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .refresh-btn:hover {
+            background: #222;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="title">NFT Collection Floor Price</h1>
+
+    <div class="bubble">
+        <div id="usd-price-container">
+            <span id="usd-price">Loading...</span> 
+            <span id="usd-currency">USD</span>
+        </div>
+        <div id="eth-price-container">
+            <span id="eth-price">Loading...</span>
+        </div>
+    </div>
+
+    <p id="last-updated">Fetching latest data...</p>
+    
+    <button class="refresh-btn" onclick="fetchLatestPrice()">Refresh Now</button>
+
+    <script src="script.js"></script>
+</body>
+</html>
