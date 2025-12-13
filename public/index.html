@@ -31,7 +31,7 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); /* Subtle white glow */
-            margin: 40px 0;
+            margin: 40px 0 20px 0; /* Reduced bottom margin to fit stats */
         }
 
         .title {
@@ -58,6 +58,21 @@
             color: #333; /* Darker grey for ETH price */
             font-weight: bold;
             font-size: 1.5em; /* Bold but smaller than USD */
+        }
+        
+        /* New: Market Cap Styling */
+        .stats-container {
+            margin-top: 20px;
+            padding: 10px;
+            border-top: 1px solid #333;
+            width: 90%;
+            max-width: 400px;
+        }
+        #market-cap-display {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #999;
+            margin-bottom: 15px;
         }
         
         #last-updated { 
@@ -93,6 +108,10 @@
         <div id="eth-price-container">
             <span id="eth-price">Loading...</span>
         </div>
+    </div>
+    
+    <div class="stats-container">
+        <p id="market-cap-display">Market Cap: Loading...</p>
     </div>
 
     <p id="last-updated">Fetching latest data...</p>
