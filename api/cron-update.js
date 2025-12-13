@@ -1,15 +1,14 @@
-// api/cron-update.js - FINAL DEFINITIVE CORE: Uses Private Alchemy Node for Supply
+// api/cron-update.js - FINAL CORE: Floor Price, Market Cap, and Volume
 
 // ----------------------------------------------------
 // ENVIRONMENT VARIABLES & CONFIGURATION
 // ----------------------------------------------------
 const OPENSEA_API_KEY = process.env.OPENSEA_API_KEY; 
-const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY; // <-- NEW KEY REQUIRED
+const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY; 
 
 const COLLECTION_SLUG = "bubbles-by-xcopy"; 
 const CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8"; 
 
-// Using your verified Alchemy endpoint
 const ETH_NODE_URL = `https://shape-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`; 
 
 const OPEN_SEA_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`;
@@ -30,10 +29,7 @@ const TOTAL_SUPPLY_PAYLOAD = {
  * Helper function to fetch total supply from the smart contract via the dedicated Alchemy node.
  */
 async function fetchContractSupply(nodeUrl) {
-    if (!ALCHEMY_API_KEY) {
-        console.error("ALCHEMY_API_KEY is missing. Contract fetch skipped.");
-        return 0;
-    }
+    if (!ALCHEMY_API_KEY) return 0;
     
     try {
         const response = await fetch(nodeUrl, {
@@ -42,10 +38,7 @@ async function fetchContractSupply(nodeUrl) {
             body: JSON.stringify(TOTAL_SUPPLY_PAYLOAD)
         });
         
-        if (!response.ok) {
-            console.error(`Alchemy node error: ${response.status}.`);
-            return 0;
-        }
+        if (!response.ok) return 0;
         
         const json = await response.json();
         
@@ -75,7 +68,7 @@ export default async function handler(req, res) {
             headers: { 'accept': 'application/json', 'X-API-Key': OPENSEA_API_KEY }
         }),
         fetch(ETH_USD_CONVERSION_URL),
-        fetchContractSupply(ETH_NODE_URL) // Pass the configured URL
+        fetchContractSupply(ETH_NODE_URL)
     ]);
 
     // 2. PROCESS OPENSEA RESPONSE 
@@ -85,20 +78,20 @@ export default async function handler(req, res) {
     const data = await openSeaResponse.json();
     const stats = data.total;
     
+    // Extract Floor Price and Volume
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
+    const totalVolumeValue = parseFloat(stats.volume) || 0; // <<< VOLUME ADDED
     const currency = stats.floor_price_symbol || 'ETH';
     
-    // 3. DETERMINE TOTAL SUPPLY: Use Contract Supply if > 0, otherwise fallback to OpenSea total_supply/num_owners
+    // 3. DETERMINE TOTAL SUPPLY 
     let totalSupply = contractSupply;
-
     if (totalSupply === 0) {
         // Fallback: Use OpenSea's supply data
         totalSupply = parseInt(stats.total_supply || stats.num_owners) || 0;
-        console.warn("Using OpenSea supply data due to contract fetch failure.");
     }
 
 
-    // 4. CALCULATE MARKET CAP MANUALLY
+    // 4. CALCULATE MARKET CAP
     const marketCapETH = floorPriceValue * totalSupply; 
 
 
@@ -106,6 +99,7 @@ export default async function handler(req, res) {
     let ethUsdRate = null;
     let floorPriceUSD = 'N/A';
     let marketCapUSD = 'N/A'; 
+    let totalVolumeUSD = 'N/A'; // <<< VOLUME USD ADDED
 
     if (coinGeckoResponse.ok) {
         const cgData = await coinGeckoResponse.json();
@@ -119,6 +113,9 @@ export default async function handler(req, res) {
         if (marketCapETH > 0) {
             marketCapUSD = (marketCapETH * ethUsdRate).toFixed(0); 
         }
+        if (totalVolumeValue > 0) { // <<< VOLUME USD CALCULATION
+            totalVolumeUSD = (totalVolumeValue * ethUsdRate).toFixed(0); 
+        }
     }
     
     // 6. CONSTRUCT FINAL RESPONSE
@@ -128,12 +125,14 @@ export default async function handler(req, res) {
       usd: floorPriceUSD, 
       market_cap_eth: marketCapETH.toFixed(2), 
       market_cap_usd: marketCapUSD,           
+      volume: totalVolumeValue.toFixed(2), // <<< VOLUME ETH RETURNED
+      volume_usd: totalVolumeUSD,          // <<< VOLUME USD RETURNED
       lastUpdated: new Date().toISOString(),
       supply: totalSupply 
     };
 
     return res.status(200).json({ 
-        message: 'Accurate Market Cap using Shape Mainnet Supply with OpenSea Fallback.',
+        message: 'Data fetch successful (Floor, MC, Volume).',
         data: finalData
     });
 
