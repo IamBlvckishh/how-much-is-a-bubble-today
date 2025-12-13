@@ -10,7 +10,7 @@ const OPENSEA_API_KEY = process.env.OPENSEA_API_KEY;
 // ----------------------------------------------------
 // !!! CRITICAL: YOU MUST REPLACE 'YOUR-OPENSEA-SLUG' with the actual slug
 // Example: 'boredapeyachtclub' 
-const COLLECTION_SLUG = "BUBBLES-BY-XCOPY"; 
+const COLLECTION_SLUG = "bubbles-by-xcopy"; 
 
 const OPEN_SEA_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`;
 const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; 
