@@ -1,4 +1,4 @@
-// public/script.js - Polling function for near real-time updates
+// public/script.js - Polling function for near real-time updates (No Market Cap)
 
 // Helper to format large numbers as currency (e.g., $1,250,000)
 const formatCurrency = (number) => {
@@ -22,11 +22,7 @@ async function fetchAndUpdatePrice() {
         document.getElementById('floor-price-eth').textContent = `${data.price} ${data.currency}`;
         document.getElementById('floor-price-usd').textContent = `~${data.usd}`;
         
-        // --- Update the New Bubble Economy Metrics ---
-        
-        // Market Cap (Using native OpenSea data)
-        document.getElementById('market-cap-display').textContent = 
-            `Market Cap: ${data.market_cap_eth} ${data.currency} (${formatCurrency(data.market_cap_usd)})`;
+        // --- Update the Core Metrics ---
         
         // Volume
         document.getElementById('total-volume-display').textContent = 
@@ -35,6 +31,9 @@ async function fetchAndUpdatePrice() {
         // Supply
         document.getElementById('total-supply-display').textContent = 
             `Total Supply: ${data.supply.toLocaleString()}`;
+
+        // NOTE: The 'market-cap-display' element will no longer be updated. 
+        // You should remove the corresponding <p id="market-cap-display">...</p> from your HTML.
 
         console.log(`Updated price at ${new Date().toLocaleTimeString()}`);
 
