@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL OPTIMIZED CODE: OpenSea Floor Price, Volume, and Supply (No Market Cap)
+// api/cron-update.js - FINAL OPTIMIZED CODE: OpenSea Floor Price, Volume, Supply, and Market Cap
 
 // ----------------------------------------------------
 // ENVIRONMENT VARIABLES & CONFIGURATION
@@ -21,14 +21,12 @@ export default async function handler(req, res) {
   console.log(`Starting floor price update using OpenSea for ${COLLECTION_SLUG}...`);
 
   try {
-    // Check for API Key
     if (!OPENSEA_API_KEY) {
         throw new Error("OpenSea API Key is missing or blank. Check Vercel settings.");
     }
 
-    // 1. INITIATE CONCURRENT API CALLS using Promise.all() for maximum speed
+    // 1. INITIATE CONCURRENT API CALLS (Promise.all() for speed)
     const [openSeaResponse, coinGeckoResponse] = await Promise.all([
-        // OpenSea Fetch (Authenticated)
         fetch(OPEN_SEA_STATS_URL, {
             method: 'GET',
             headers: { 
@@ -36,7 +34,6 @@ export default async function handler(req, res) {
                 'X-API-Key': OPENSEA_API_KEY 
             }
         }),
-        // CoinGecko Fetch (Unauthenticated)
         fetch(ETH_USD_CONVERSION_URL)
     ]);
 
@@ -44,8 +41,7 @@ export default async function handler(req, res) {
     // 2. PROCESS OPENSEA RESPONSE
     if (!openSeaResponse.ok) {
         const errorText = await openSeaResponse.text();
-        console.error(`OpenSea API Error: ${openSeaResponse.status} - ${errorText}`);
-        throw new Error(`OpenSea API error: ${openSeaResponse.status}. Check SLUG or API Key. Response: ${errorText}`);
+        throw new Error(`OpenSea API error: ${openSeaResponse.status}. Response: ${errorText}`);
     }
 
     const data = await openSeaResponse.json();
@@ -55,6 +51,10 @@ export default async function handler(req, res) {
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
     const totalVolumeValue = parseFloat(stats.volume) || 0;
     const totalSupplyValue = parseInt(stats.total_supply || stats.num_owners) || 0;
+    
+    // <<< SIMPLEST WAY TO ADD MARKET CAP (Directly from API) >>>
+    const marketCapETH = parseFloat(stats.market_cap) || 0; 
+    
     const currency = stats.floor_price_symbol || 'ETH';
 
 
@@ -70,6 +70,7 @@ export default async function handler(req, res) {
     // 4. CALCULATE USD Metrics
     let floorPriceUSD = 'N/A';
     let totalVolumeUSD = 'N/A';
+    let marketCapUSD = 'N/A'; // Default to N/A
 
     if (ethUsdRate) {
         if (floorPriceValue > 0) {
@@ -77,6 +78,10 @@ export default async function handler(req, res) {
         }
         if (totalVolumeValue > 0) {
             totalVolumeUSD = (totalVolumeValue * ethUsdRate).toFixed(0);
+        }
+        // Calculate Market Cap USD only if we have the ETH rate and the ETH Market Cap
+        if (marketCapETH > 0) {
+            marketCapUSD = (marketCapETH * ethUsdRate).toFixed(0);
         }
     }
     
@@ -88,6 +93,8 @@ export default async function handler(req, res) {
       volume: totalVolumeValue.toFixed(2),
       volume_usd: totalVolumeUSD,
       supply: totalSupplyValue,
+      market_cap_eth: marketCapETH.toFixed(2),
+      market_cap_usd: marketCapUSD, // Added back
       lastUpdated: new Date().toISOString()
     };
 
