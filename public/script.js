@@ -1,4 +1,4 @@
-// public/script.js
+// public/script.js - Polling function for near real-time updates
 
 // Helper to format large numbers as currency (e.g., $1,250,000)
 const formatCurrency = (number) => {
@@ -7,7 +7,7 @@ const formatCurrency = (number) => {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
-        minimumFractionDigits: num >= 1000 ? 0 : 2 // Keep cents for small numbers
+        minimumFractionDigits: num >= 1000 ? 0 : 2
     }).format(num);
 };
 
@@ -24,7 +24,7 @@ async function fetchAndUpdatePrice() {
         
         // --- Update the New Bubble Economy Metrics ---
         
-        // Market Cap (The BIG one)
+        // Market Cap (Using native OpenSea data)
         document.getElementById('market-cap-display').textContent = 
             `Market Cap: ${data.market_cap_eth} ${data.currency} (${formatCurrency(data.market_cap_usd)})`;
         
@@ -41,12 +41,16 @@ async function fetchAndUpdatePrice() {
     } catch (error) {
         console.error('Error fetching real-time data:', error);
         document.getElementById('floor-price-eth').textContent = 'Error';
+        document.getElementById('floor-price-usd').textContent = 'N/A';
     }
 }
 
 // ----------------------------------------------------
 // THE REAL-TIME POLLING LOOP
 // ----------------------------------------------------
+// 1. Initial call to load data immediately
 fetchAndUpdatePrice();
+
+// 2. Set up the interval for "Near Real-Time" updates (e.g., every 10 seconds)
 const updateIntervalSeconds = 10; 
 setInterval(fetchAndUpdatePrice, updateIntervalSeconds * 1000);
