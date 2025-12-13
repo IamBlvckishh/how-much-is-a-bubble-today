@@ -1,15 +1,11 @@
-// api/cron-update.js - OpenSea Floor Price + CoinGecko USD Conversion
+// api/cron-update.js - FINAL CODE: OpenSea Floor Price, Volume, Supply, and Market Cap + CoinGecko USD
 
 // ----------------------------------------------------
-// ENVIRONMENT VARIABLES: Ensure these are set in Vercel
+// ENVIRONMENT VARIABLES & CONFIGURATION
 // ----------------------------------------------------
 const OPENSEA_API_KEY = process.env.OPENSEA_API_KEY; 
 
-// ----------------------------------------------------
-// CONFIGURATION: Set the Collection Slug
-// ----------------------------------------------------
-// !!! CRITICAL: YOU MUST REPLACE 'YOUR-OPENSEA-SLUG' with the actual slug
-// Example: 'boredapeyachtclub' 
+// !!! CRITICAL: REPLACE THIS WITH YOUR ACTUAL OPENSEA SLUG !!!
 const COLLECTION_SLUG = "bubbles-by-xcopy"; 
 
 const OPEN_SEA_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`;
@@ -40,12 +36,15 @@ export default async function handler(req, res) {
   console.log(`Starting floor price update using OpenSea for ${COLLECTION_SLUG}...`);
 
   try {
-    // 1. Fetch Floor Price (from OpenSea, Authenticated)
+    // 1. Fetch Floor Price & Stats (from OpenSea, Authenticated)
+    if (!OPENSEA_API_KEY) {
+        throw new Error("OpenSea API Key is missing or blank.");
+    }
+
     const openSeaResponse = await fetch(OPEN_SEA_STATS_URL, {
         method: 'GET',
         headers: { 
             'accept': 'application/json',
-            // OpenSea uses the custom header for V2 API calls
             'X-API-Key': OPENSEA_API_KEY 
         }
     });
@@ -53,37 +52,59 @@ export default async function handler(req, res) {
     if (!openSeaResponse.ok) {
         const errorText = await openSeaResponse.text();
         console.error(`OpenSea API Error: ${openSeaResponse.status} - ${errorText}`);
-        throw new Error(`OpenSea API error: ${openSeaResponse.status}. Check SLUG or API Key.`);
+        throw new Error(`OpenSea API error: ${openSeaResponse.status}. Check SLUG or API Key. Response: ${errorText}`);
     }
 
     const data = await openSeaResponse.json();
-    
-    // OpenSea V2 returns stats within a 'total' object
     const stats = data.total;
     
+    // Parse core metrics
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
+    const totalVolumeValue = parseFloat(stats.volume) || 0;
+    const totalSupplyValue = parseInt(stats.total_supply || stats.num_owners) || 0; // Use total_supply if available, otherwise num_owners
     const currency = stats.floor_price_symbol || 'ETH';
     
     // 2. Fetch ETH/USD Conversion Rate (from CoinGecko)
     const ethUsdRate = await fetchEthUsdPrice();
 
-    // 3. Calculate Final Prices
+    // 3. Calculate Market Cap and USD Metrics
     let floorPriceUSD = 'N/A';
-    
-    if (floorPriceValue > 0 && ethUsdRate) {
-        floorPriceUSD = (floorPriceValue * ethUsdRate).toFixed(2);
+    let totalVolumeUSD = 'N/A';
+    let marketCapETH = 0;
+    let marketCapUSD = 'N/A';
+
+    if (floorPriceValue > 0) {
+        // Calculation
+        marketCapETH = floorPriceValue * totalSupplyValue;
+    }
+
+    if (ethUsdRate) {
+        if (floorPriceValue > 0) {
+            floorPriceUSD = (floorPriceValue * ethUsdRate).toFixed(2);
+        }
+        if (totalVolumeValue > 0) {
+            totalVolumeUSD = (totalVolumeValue * ethUsdRate).toFixed(0);
+        }
+        if (marketCapETH > 0) {
+            marketCapUSD = (marketCapETH * ethUsdRate).toFixed(0);
+        }
     }
     
-    const finalFloorData = {
+    const finalData = {
       price: floorPriceValue.toFixed(4), 
       currency: currency,
       usd: floorPriceUSD, 
+      volume: totalVolumeValue.toFixed(2),
+      volume_usd: totalVolumeUSD,
+      supply: totalSupplyValue,
+      market_cap_eth: marketCapETH.toFixed(2),
+      market_cap_usd: marketCapUSD,
       lastUpdated: new Date().toISOString()
     };
 
     return res.status(200).json({ 
-        message: 'Floor price via OpenSea. USD via CoinGecko.',
-        data: finalFloorData
+        message: 'Floor price and stats via OpenSea. USD via CoinGecko.',
+        data: finalData
     });
 
   } catch (error) {
