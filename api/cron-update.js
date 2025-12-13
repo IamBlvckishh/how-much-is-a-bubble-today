@@ -1,15 +1,34 @@
-// api/cron-update.js - FINAL OPTIMIZED CODE: OpenSea Floor Price, Volume, Supply, and Market Cap
+// api/cron-update.js - OpenSea Floor Price + CoinGecko USD Conversion
 
 // ----------------------------------------------------
-// ENVIRONMENT VARIABLES & CONFIGURATION
+// ENVIRONMENT VARIABLES: Ensure these are set in Vercel
 // ----------------------------------------------------
 const OPENSEA_API_KEY = process.env.OPENSEA_API_KEY; 
 
-// CONFIRMED SLUG
+// ----------------------------------------------------
+// CONFIGURATION: Set the Collection Slug
+// ----------------------------------------------------
+// !!! CRITICAL: YOU MUST REPLACE 'YOUR-OPENSEA-SLUG' with the actual slug
+// Example: 'boredapeyachtclub' 
 const COLLECTION_SLUG = "bubbles-by-xcopy"; 
 
 const OPEN_SEA_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`;
 const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; 
+
+/**
+ * Helper function to fetch ETH/USD price from CoinGecko (No API Key required).
+ */
+async function fetchEthUsdPrice() {
+    try {
+        const response = await fetch(ETH_USD_CONVERSION_URL);
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.ethereum.usd;
+    } catch (error) {
+        console.error("Failed to fetch ETH/USD conversion from CoinGecko:", error);
+        return null;
+    }
+}
 
 
 // --- Main Handler Function ---
@@ -21,90 +40,54 @@ export default async function handler(req, res) {
   console.log(`Starting floor price update using OpenSea for ${COLLECTION_SLUG}...`);
 
   try {
-    if (!OPENSEA_API_KEY) {
-        throw new Error("OpenSea API Key is missing or blank. Check Vercel settings.");
-    }
+    // 1. Fetch Floor Price (from OpenSea, Authenticated)
+    const openSeaResponse = await fetch(OPEN_SEA_STATS_URL, {
+        method: 'GET',
+        headers: { 
+            'accept': 'application/json',
+            // OpenSea uses the custom header for V2 API calls
+            'X-API-Key': OPENSEA_API_KEY 
+        }
+    });
 
-    // 1. INITIATE CONCURRENT API CALLS (Promise.all() for speed)
-    const [openSeaResponse, coinGeckoResponse] = await Promise.all([
-        fetch(OPEN_SEA_STATS_URL, {
-            method: 'GET',
-            headers: { 
-                'accept': 'application/json',
-                'X-API-Key': OPENSEA_API_KEY 
-            }
-        }),
-        fetch(ETH_USD_CONVERSION_URL)
-    ]);
-
-
-    // 2. PROCESS OPENSEA RESPONSE
     if (!openSeaResponse.ok) {
         const errorText = await openSeaResponse.text();
-        throw new Error(`OpenSea API error: ${openSeaResponse.status}. Response: ${errorText}`);
+        console.error(`OpenSea API Error: ${openSeaResponse.status} - ${errorText}`);
+        throw new Error(`OpenSea API error: ${openSeaResponse.status}. Check SLUG or API Key.`);
     }
 
     const data = await openSeaResponse.json();
+    
+    // OpenSea V2 returns stats within a 'total' object
     const stats = data.total;
     
-    // Parse core metrics
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
-    const totalVolumeValue = parseFloat(stats.volume) || 0;
-    const totalSupplyValue = parseInt(stats.total_supply || stats.num_owners) || 0;
-    
-    // <<< SIMPLEST WAY TO ADD MARKET CAP (Directly from API) >>>
-    const marketCapETH = parseFloat(stats.market_cap) || 0; 
-    
     const currency = stats.floor_price_symbol || 'ETH';
-
-
-    // 3. PROCESS COINGECKO RESPONSE
-    let ethUsdRate = null;
-    if (coinGeckoResponse.ok) {
-        const cgData = await coinGeckoResponse.json();
-        ethUsdRate = cgData.ethereum.usd;
-    } else {
-        console.warn("CoinGecko fetch failed. Proceeding without live USD conversion.");
-    }
     
-    // 4. CALCULATE USD Metrics
+    // 2. Fetch ETH/USD Conversion Rate (from CoinGecko)
+    const ethUsdRate = await fetchEthUsdPrice();
+
+    // 3. Calculate Final Prices
     let floorPriceUSD = 'N/A';
-    let totalVolumeUSD = 'N/A';
-    let marketCapUSD = 'N/A'; // Default to N/A
-
-    if (ethUsdRate) {
-        if (floorPriceValue > 0) {
-            floorPriceUSD = (floorPriceValue * ethUsdRate).toFixed(2);
-        }
-        if (totalVolumeValue > 0) {
-            totalVolumeUSD = (totalVolumeValue * ethUsdRate).toFixed(0);
-        }
-        // Calculate Market Cap USD only if we have the ETH rate and the ETH Market Cap
-        if (marketCapETH > 0) {
-            marketCapUSD = (marketCapETH * ethUsdRate).toFixed(0);
-        }
+    
+    if (floorPriceValue > 0 && ethUsdRate) {
+        floorPriceUSD = (floorPriceValue * ethUsdRate).toFixed(2);
     }
     
-    // 5. CONSTRUCT FINAL RESPONSE
-    const finalData = {
+    const finalFloorData = {
       price: floorPriceValue.toFixed(4), 
       currency: currency,
       usd: floorPriceUSD, 
-      volume: totalVolumeValue.toFixed(2),
-      volume_usd: totalVolumeUSD,
-      supply: totalSupplyValue,
-      market_cap_eth: marketCapETH.toFixed(2),
-      market_cap_usd: marketCapUSD, // Added back
       lastUpdated: new Date().toISOString()
     };
 
     return res.status(200).json({ 
-        message: 'Floor price and stats via OpenSea. USD via CoinGecko.',
-        data: finalData
+        message: 'Floor price via OpenSea. USD via CoinGecko.',
+        data: finalFloorData
     });
 
   } catch (error) {
-    console.error("Error during floor price job:", error);
+    console.error("Error during floor price job (OpenSea):", error);
     return res.status(500).json({ message: `Failed to fetch price: ${error.message}` });
   }
 }
