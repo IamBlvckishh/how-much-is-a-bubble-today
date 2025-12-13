@@ -1,4 +1,4 @@
-// public/script.js - Optimized for Market Cap and Volume Display
+// public/script.js - Optimized for Market Cap, Volume, and 24h Change Display
 
 /**
  * Helper to format large numbers (Market Cap, Volume) as currency (e.g., $1,250,000)
@@ -8,7 +8,6 @@
 const formatCurrency = (numberString) => {
     if (numberString === 'N/A') return 'N/A';
     const num = parseFloat(numberString);
-    // Format as currency, setting max decimal places to 0 for large numbers
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
@@ -17,18 +16,51 @@ const formatCurrency = (numberString) => {
     }).format(num);
 };
 
+/**
+ * Helper to format the 24h price change and apply color class.
+ * @param {string} changeString - The percentage change string from the API.
+ */
+const updatePriceChangeDisplay = (changeString) => {
+    const changeDisplay = document.getElementById('price-change-24h');
+    const changeValue = parseFloat(changeString);
+    
+    // Clear previous classes
+    changeDisplay.className = '';
+    
+    if (isNaN(changeValue)) {
+        changeDisplay.textContent = 'N/A';
+        changeDisplay.classList.add('change-neutral');
+        return;
+    }
+    
+    // Determine the sign and color class
+    const sign = changeValue > 0 ? '+' : '';
+    let colorClass = 'change-neutral';
+    
+    if (changeValue > 0.05) { // Threshold for "up"
+        colorClass = 'change-up';
+    } else if (changeValue < -0.05) { // Threshold for "down"
+        colorClass = 'change-down';
+    }
+    
+    changeDisplay.textContent = `${sign}${changeValue.toFixed(2)}% (24h)`;
+    changeDisplay.classList.add(colorClass);
+};
+
+
 async function fetchLatestPrice() {
     const usdPriceDisplay = document.getElementById('usd-price');
     const ethPriceDisplay = document.getElementById('eth-price');
     const marketCapDisplay = document.getElementById('market-cap-display');
-    const volumeDisplay = document.getElementById('total-volume-display'); // <<< NEW ELEMENT
+    const volumeDisplay = document.getElementById('total-volume-display');
     const updatedDisplay = document.getElementById('last-updated');
 
     // 1. Set Loading State
     usdPriceDisplay.textContent = '...';
     ethPriceDisplay.textContent = '...';
+    document.getElementById('price-change-24h').textContent = '...';
     marketCapDisplay.textContent = 'Market Cap: ...';
-    volumeDisplay.textContent = 'Total Volume: ...'; // <<< NEW LOADING STATE
+    volumeDisplay.textContent = 'Total Volume: ...';
     updatedDisplay.textContent = 'Please wait...';
 
     try {
@@ -53,29 +85,31 @@ async function fetchLatestPrice() {
             usdPriceDisplay.textContent = formattedUsdPrice;
             ethPriceDisplay.textContent = `(${data.price} ${data.currency})`;
 
-            // 3. Display: Market Cap
+            // 3. Display: 24h Change
+            updatePriceChangeDisplay(data.price_change_24h);
+
+            // 4. Display: Market Cap
             const formattedMarketCap = formatCurrency(data.market_cap_usd);
             marketCapDisplay.textContent = 
                 `Market Cap: ${data.market_cap_eth} ${data.currency} (${formattedMarketCap})`;
             
-            // 4. Display: Volume
-            const formattedVolume = formatCurrency(data.volume_usd); // <<< VOLUME DISPLAY
+            // 5. Display: Volume
+            const formattedVolume = formatCurrency(data.volume_usd); 
             volumeDisplay.textContent = 
                 `Total Volume: ${data.volume} ${data.currency} (${formattedVolume})`;
             
-            // 5. Display: Last Updated Timestamp
+            // 6. Display: Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
         } else {
             usdPriceDisplay.textContent = 'No Data';
             ethPriceDisplay.textContent = 'No Data';
-            marketCapDisplay.textContent = 'Market Cap: No Data';
-            volumeDisplay.textContent = 'Total Volume: No Data';
         }
 
     } catch (error) {
         console.error("Error loading data:", error);
         usdPriceDisplay.textContent = 'ERROR';
         ethPriceDisplay.textContent = '...';
+        document.getElementById('price-change-24h').textContent = 'ERROR';
         marketCapDisplay.textContent = 'Market Cap: ERROR';
         volumeDisplay.textContent = 'Total Volume: ERROR';
         updatedDisplay.textContent = 'Error loading data. Try refreshing.';
