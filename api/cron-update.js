@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL CORE: Floor Price, Market Cap, and Volume
+// api/cron-update.js - FINAL CORE: Floor Price, Market Cap, Volume, and 24h Change
 
 // ----------------------------------------------------
 // ENVIRONMENT VARIABLES & CONFIGURATION
@@ -80,13 +80,27 @@ export default async function handler(req, res) {
     
     // Extract Floor Price and Volume
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
-    const totalVolumeValue = parseFloat(stats.volume) || 0; // <<< VOLUME ADDED
+    const totalVolumeValue = parseFloat(stats.volume) || 0; 
     const currency = stats.floor_price_symbol || 'ETH';
+    
+    // --- 24H PRICE CHANGE LOGIC ---
+    let floorPrice24hAgo = 0;
+    let priceChange24h = 0;
+
+    // The OpenSea stats response includes an 'intervals' array. We assume the first interval is the 24hr lookback.
+    if (data.intervals && data.intervals.length > 0) {
+        // Find the floor price from the previous interval
+        floorPrice24hAgo = parseFloat(data.intervals[0].average_price) || 0; 
+    }
+    
+    // Calculate 24h floor price change percentage
+    if (floorPriceValue > 0 && floorPrice24hAgo > 0) {
+        priceChange24h = ((floorPriceValue - floorPrice24hAgo) / floorPrice24hAgo) * 100;
+    }
     
     // 3. DETERMINE TOTAL SUPPLY 
     let totalSupply = contractSupply;
     if (totalSupply === 0) {
-        // Fallback: Use OpenSea's supply data
         totalSupply = parseInt(stats.total_supply || stats.num_owners) || 0;
     }
 
@@ -99,7 +113,7 @@ export default async function handler(req, res) {
     let ethUsdRate = null;
     let floorPriceUSD = 'N/A';
     let marketCapUSD = 'N/A'; 
-    let totalVolumeUSD = 'N/A'; // <<< VOLUME USD ADDED
+    let totalVolumeUSD = 'N/A';
 
     if (coinGeckoResponse.ok) {
         const cgData = await coinGeckoResponse.json();
@@ -113,7 +127,7 @@ export default async function handler(req, res) {
         if (marketCapETH > 0) {
             marketCapUSD = (marketCapETH * ethUsdRate).toFixed(0); 
         }
-        if (totalVolumeValue > 0) { // <<< VOLUME USD CALCULATION
+        if (totalVolumeValue > 0) {
             totalVolumeUSD = (totalVolumeValue * ethUsdRate).toFixed(0); 
         }
     }
@@ -125,14 +139,15 @@ export default async function handler(req, res) {
       usd: floorPriceUSD, 
       market_cap_eth: marketCapETH.toFixed(2), 
       market_cap_usd: marketCapUSD,           
-      volume: totalVolumeValue.toFixed(2), // <<< VOLUME ETH RETURNED
-      volume_usd: totalVolumeUSD,          // <<< VOLUME USD RETURNED
+      volume: totalVolumeValue.toFixed(2),
+      volume_usd: totalVolumeUSD,          
+      price_change_24h: priceChange24h.toFixed(2), // <<< NEW 24H CHANGE
       lastUpdated: new Date().toISOString(),
       supply: totalSupply 
     };
 
     return res.status(200).json({ 
-        message: 'Data fetch successful (Floor, MC, Volume).',
+        message: 'Data fetch successful (Floor, MC, Volume, 24h Change).',
         data: finalData
     });
 
