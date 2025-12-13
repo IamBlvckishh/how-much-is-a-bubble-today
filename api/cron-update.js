@@ -26,8 +26,7 @@ export default async function handler(req, res) {
         throw new Error("OpenSea API Key is missing or blank. Check Vercel settings.");
     }
 
-    // 1. INITIATE CONCURRENT API CALLS using Promise.all()
-    // This executes the OpenSea and CoinGecko fetches simultaneously to reduce latency.
+    // 1. INITIATE CONCURRENT API CALLS using Promise.all() for maximum speed
     const [openSeaResponse, coinGeckoResponse] = await Promise.all([
         // OpenSea Fetch (Authenticated)
         fetch(OPEN_SEA_STATS_URL, {
@@ -56,6 +55,8 @@ export default async function handler(req, res) {
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
     const totalVolumeValue = parseFloat(stats.volume) || 0;
     const totalSupplyValue = parseInt(stats.total_supply || stats.num_owners) || 0;
+    // PULL MARKET CAP DIRECTLY from OpenSea API
+    const marketCapETH = parseFloat(stats.market_cap) || 0; 
     const currency = stats.floor_price_symbol || 'ETH';
 
 
@@ -68,15 +69,10 @@ export default async function handler(req, res) {
         console.warn("CoinGecko fetch failed. Proceeding without live USD conversion.");
     }
     
-    // 4. CALCULATE MARKET CAP and USD Metrics
+    // 4. CALCULATE USD Metrics
     let floorPriceUSD = 'N/A';
     let totalVolumeUSD = 'N/A';
-    let marketCapETH = 0;
     let marketCapUSD = 'N/A';
-
-    if (floorPriceValue > 0) {
-        marketCapETH = floorPriceValue * totalSupplyValue;
-    }
 
     if (ethUsdRate) {
         if (floorPriceValue > 0) {
