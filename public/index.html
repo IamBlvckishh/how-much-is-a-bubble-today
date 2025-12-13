@@ -54,6 +54,18 @@
             display: block;
         }
 
+        /* 24H CHANGE STYLING */
+        #price-change-24h {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 10px;
+            /* Default color - will be overridden by script */
+            color: #000; 
+        }
+        .change-up { color: #00C853; } /* Green */
+        .change-down { color: #D50000; } /* Red */
+        .change-neutral { color: #333; } /* Grey */
+
         #eth-price-container {
             color: #333; 
             font-weight: bold;
@@ -105,14 +117,14 @@
             <span id="usd-price">Loading...</span> 
             <span id="usd-currency">USD</span>
         </div>
-        <div id="eth-price-container">
+        
+        <div id="price-change-24h">Loading...</div> <div id="eth-price-container">
             <span id="eth-price">Loading...</span>
         </div>
     </div>
     
     <div class="stats-container">
         <p id="market-cap-display" class="stat-line">Market Cap: Loading...</p>
-        
         <p id="total-volume-display" class="stat-line">Total Volume: Loading...</p>
     </div>
 
