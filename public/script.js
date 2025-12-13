@@ -1,33 +1,34 @@
-// public/script.js - Single Fetch Function (Floor Price Only)
+// public/script.js - Updated to handle potential N/A for USD
 
-// Function to fetch data and update the display
-async function fetchAndUpdatePrice() {
+async function fetchLatestPrice() {
+    // ... (unchanged)
+    // ...
     try {
-        const response = await fetch('/api/cron-update');
-        const json = await response.json();
-        const data = json.data;
-
-        // --- Update the Main Bubble/Price ---
-        document.getElementById('floor-price-eth').textContent = `${data.price} ${data.currency}`;
-        document.getElementById('floor-price-usd').textContent = `~${data.usd}`;
+        // ... (unchanged fetch call)
         
-        // Hide any other elements (Volume, Market Cap, Supply) if they exist in the HTML
-        const clearElements = ['market-cap-display', 'total-volume-display', 'total-supply-display'];
-        clearElements.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'none';
-        });
-
-        console.log(`Initial data loaded at ${new Date().toLocaleTimeString()}`);
+        const result = await response.json();
+        
+        if (result.data) {
+            const data = result.data;
+            
+            // USD Price: Will display 'N/A' unless you add a second API call for conversion
+            const usdValue = data.usd !== 'N/A' ? `$${data.usd}` : 'USD N/A';
+            usdPriceDisplay.textContent = usdValue;
+            
+            // ETH Price
+            ethPriceDisplay.textContent = `${data.price} ${data.currency}`;
+            
+            // Last Updated Timestamp
+            updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
+        } else {
+             usdPriceDisplay.textContent = 'No Data';
+             ethPriceDisplay.textContent = 'No Data';
+        }
 
     } catch (error) {
-        console.error('Error fetching initial data:', error);
-        document.getElementById('floor-price-eth').textContent = 'Error';
-        document.getElementById('floor-price-usd').textContent = 'N/A';
+        // ... (unchanged)
     }
 }
 
-// 1. Initial call to load data immediately
-fetchAndUpdatePrice();
-
-// No polling is set up here.
+// Call the function when the page loads
+fetchLatestPrice();
