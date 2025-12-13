@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL CORE: Floor Price, Market Cap, Volume, and 24h Change
+// api/cron-update.js - FINAL ROBUST CORE: Corrected 24h Price Change Calculation
 
 // ----------------------------------------------------
 // ENVIRONMENT VARIABLES & CONFIGURATION
@@ -14,20 +14,15 @@ const ETH_NODE_URL = `https://shape-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`
 const OPEN_SEA_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`;
 const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; 
 
-// JSON-RPC Payload to call ERC-721 totalSupply()
+// JSON-RPC Payload (remains the same)
 const TOTAL_SUPPLY_PAYLOAD = {
     jsonrpc: "2.0",
     id: 1,
     method: "eth_call",
-    params: [{
-        to: CONTRACT_ADDRESS,
-        data: "0x18160ddd" 
-    }, "latest"]
+    params: [{ to: CONTRACT_ADDRESS, data: "0x18160ddd" }, "latest"]
 };
 
-/**
- * Helper function to fetch total supply from the smart contract via the dedicated Alchemy node.
- */
+// Contract Supply Fetch (remains the same)
 async function fetchContractSupply(nodeUrl) {
     if (!ALCHEMY_API_KEY) return 0;
     
@@ -41,7 +36,6 @@ async function fetchContractSupply(nodeUrl) {
         if (!response.ok) return 0;
         
         const json = await response.json();
-        
         return parseInt(json.result || '0x0', 16); 
     } catch (error) {
         console.error("Failed to fetch supply from Smart Contract:", error.message);
@@ -61,7 +55,7 @@ export default async function handler(req, res) {
         throw new Error("OpenSea API Key is missing or blank.");
     }
 
-    // 1. INITIATE THREE CONCURRENT API CALLS 
+    // 1. INITIATE CONCURRENT API CALLS 
     const [openSeaResponse, coinGeckoResponse, contractSupply] = await Promise.all([
         fetch(OPEN_SEA_STATS_URL, {
             method: 'GET',
@@ -78,24 +72,27 @@ export default async function handler(req, res) {
     const data = await openSeaResponse.json();
     const stats = data.total;
     
-    // Extract Floor Price and Volume
+    // Extract Metrics
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
     const totalVolumeValue = parseFloat(stats.volume) || 0; 
     const currency = stats.floor_price_symbol || 'ETH';
     
-    // --- 24H PRICE CHANGE LOGIC ---
-    let floorPrice24hAgo = 0;
+    // --- CORRECTED 24H PRICE CHANGE LOGIC ---
     let priceChange24h = 0;
 
-    // The OpenSea stats response includes an 'intervals' array. We assume the first interval is the 24hr lookback.
+    // Check for the intervals array and the first interval (which is typically the 24h period)
     if (data.intervals && data.intervals.length > 0) {
-        // Find the floor price from the previous interval
-        floorPrice24hAgo = parseFloat(data.intervals[0].average_price) || 0; 
-    }
-    
-    // Calculate 24h floor price change percentage
-    if (floorPriceValue > 0 && floorPrice24hAgo > 0) {
-        priceChange24h = ((floorPriceValue - floorPrice24hAgo) / floorPrice24hAgo) * 100;
+        const interval = data.intervals[0];
+        const floorChange = parseFloat(interval.floor_price_change) || 0;
+        const previousFloor = parseFloat(interval.floor_price) || 0; // Use 'floor_price' from the interval as the base
+
+        if (previousFloor > 0) {
+            // Calculate percentage based on the difference and the previous floor price
+            priceChange24h = (floorChange / previousFloor) * 100;
+        } else if (floorChange !== 0) {
+            // If previous floor is 0 but there was a change, the percentage calculation fails. 
+            // We just use 0% or N/A in this scenario to prevent division by zero errors.
+        }
     }
     
     // 3. DETERMINE TOTAL SUPPLY 
@@ -141,7 +138,7 @@ export default async function handler(req, res) {
       market_cap_usd: marketCapUSD,           
       volume: totalVolumeValue.toFixed(2),
       volume_usd: totalVolumeUSD,          
-      price_change_24h: priceChange24h.toFixed(2), // <<< NEW 24H CHANGE
+      price_change_24h: priceChange24h.toFixed(2), // <<< Corrected 24H CHANGE
       lastUpdated: new Date().toISOString(),
       supply: totalSupply 
     };
