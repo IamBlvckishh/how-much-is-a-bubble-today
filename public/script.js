@@ -1,15 +1,4 @@
-// public/script.js - Single Fetch Function (Floor Price, Volume, Market Cap)
-
-// Helper to format large numbers as currency (e.g., $1,250,000)
-const formatCurrency = (number) => {
-    if (number === 'N/A') return 'N/A';
-    const num = parseFloat(number);
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: num >= 1000 ? 0 : 2
-    }).format(num);
-};
+// public/script.js - Single Fetch Function (Floor Price Only)
 
 // Function to fetch data and update the display
 async function fetchAndUpdatePrice() {
@@ -22,19 +11,12 @@ async function fetchAndUpdatePrice() {
         document.getElementById('floor-price-eth').textContent = `${data.price} ${data.currency}`;
         document.getElementById('floor-price-usd').textContent = `~${data.usd}`;
         
-        // --- Update the Market Cap and Volume Metrics ---
-        
-        // Market Cap
-        document.getElementById('market-cap-display').textContent = 
-            `Market Cap: ${data.market_cap_eth} ${data.currency} (${formatCurrency(data.market_cap_usd)})`;
-            
-        // Volume
-        document.getElementById('total-volume-display').textContent = 
-            `Total Volume: ${data.volume} ${data.currency} (${formatCurrency(data.volume_usd)})`;
-        
-        // The supply element, if still in HTML, can be cleared or hidden.
-        const supplyEl = document.getElementById('total-supply-display');
-        if (supplyEl) supplyEl.style.display = 'none';
+        // Hide any other elements (Volume, Market Cap, Supply) if they exist in the HTML
+        const clearElements = ['market-cap-display', 'total-volume-display', 'total-supply-display'];
+        clearElements.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
 
         console.log(`Initial data loaded at ${new Date().toLocaleTimeString()}`);
 
