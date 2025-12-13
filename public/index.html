@@ -3,80 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bubble Economy Tracker</title>
+    <title>Daily NFT Floor Price Tracker</title>
     <style>
-        /* Basic inline styling for clarity and immediate display */
-        body {
-            font-family: Arial, sans-serif;
+        /* General Black and White Theme */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            padding: 0; 
+            margin: 0;
+            background-color: #000; /* Black background */
+            color: #fff; /* White text */
+            height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            background-color: #f4f4f9;
-            color: #333;
-            margin: 0;
         }
-        .container {
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            text-align: center;
+
+        /* Bubble Container Styling */
+        .bubble {
+            width: 300px;
+            height: 300px;
+            background: #fff; /* White circle background */
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); /* Subtle white glow */
+            margin: 40px 0;
         }
-        h1 {
-            color: #4a4a4a;
+
+        .title {
+            color: #fff;
             margin-bottom: 20px;
         }
-        .price-display {
-            border: 3px solid #6200ff;
-            border-radius: 8px;
-            padding: 15px 30px;
-            margin-bottom: 30px;
-            display: inline-block;
-        }
-        #floor-price-eth {
-            font-size: 2.5em;
+
+        /* Price Formatting */
+        #usd-price-container {
             font-weight: bold;
-            color: #6200ff;
+            color: #000; /* Black text inside the white bubble */
+            margin-bottom: 5px;
         }
-        #floor-price-usd {
-            font-size: 1.2em;
-            color: #888;
+        #usd-price { 
+            font-size: 3.5em; /* Bigger font for USD price */
+            line-height: 1.1;
         }
-        .stats p {
-            font-size: 1.1em;
-            margin: 10px 0;
-            padding: 8px;
-            border-bottom: 1px dashed #e0e0e0;
+        #usd-currency {
+            font-size: 0.5em; /* Small "USD" label */
+            display: block;
         }
-        .stats p:last-child {
-            border-bottom: none;
+
+        #eth-price-container {
+            color: #333; /* Darker grey for ETH price */
+            font-weight: bold;
+            font-size: 1.5em; /* Bold but smaller than USD */
+        }
+        
+        #last-updated { 
+            color: #999; 
+            font-size: 0.9em; 
+            margin-top: 20px;
+        }
+
+        /* Button Styling */
+        .refresh-btn {
+            padding: 10px 20px;
+            background: #000;
+            color: #fff;
+            border: 2px solid #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .refresh-btn:hover {
+            background: #222;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>how much is a bubble today</h1>
-        
-        <div class="price-display">
-            <h2>Floor Price</h2>
-            <div id="floor-price-eth">Fetching latest data...</div>
-            <div id="floor-price-usd">...</div>
+    <h1 class="title">NFT Collection Floor Price</h1>
+
+    <div class="bubble">
+        <div id="usd-price-container">
+            <span id="usd-price">Loading...</span> 
+            <span id="usd-currency">USD</span>
         </div>
-
-        <div class="stats">
-            <p id="market-cap-display">Market Cap: Loading...</p>
-            
-            <p id="total-volume-display">Total Volume: Loading...</p>
-
-            <p id="total-supply-display">Total Supply: Loading...</p>
+        <div id="eth-price-container">
+            <span id="eth-price">Loading...</span>
         </div>
-        
-        <p style="margin-top: 25px; font-size: 0.8em; color: #aaa;">Data updates daily via Vercel schedule.</p>
-
     </div>
+
+    <p id="last-updated">Fetching latest data...</p>
     
+    <button class="refresh-btn" onclick="fetchLatestPrice()">Refresh Now</button>
+
     <script src="script.js"></script>
 </body>
 </html>
