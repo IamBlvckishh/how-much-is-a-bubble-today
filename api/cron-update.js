@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL OPTIMIZED CORE: Floor Price + Market Cap
+// api/cron-update.js - FINAL OPTIMIZED CORE: Manual Market Cap Calculation using total_supply
 
 // ----------------------------------------------------
 // ENVIRONMENT VARIABLES & CONFIGURATION
@@ -45,13 +45,17 @@ export default async function handler(req, res) {
     const data = await openSeaResponse.json();
     const stats = data.total;
     
-    // Parse core metrics including Market Cap
+    // Parse core metrics: Floor Price and Total Supply
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
-    const marketCapETH = parseFloat(stats.market_cap) || 0; // <<< MARKET CAP ADDED
+    // --- CORRECTLY USING total_supply ---
+    const totalSupply = parseInt(stats.total_supply) || 0; 
     const currency = stats.floor_price_symbol || 'ETH';
 
+    // 3. CALCULATE MARKET CAP MANUALLY: Market Cap = Floor Price * Total Supply
+    const marketCapETH = floorPriceValue * totalSupply; 
 
-    // 3. PROCESS COINGECKO RESPONSE
+
+    // 4. PROCESS COINGECKO RESPONSE
     let ethUsdRate = null;
     if (coinGeckoResponse.ok) {
         const cgData = await coinGeckoResponse.json();
@@ -60,32 +64,32 @@ export default async function handler(req, res) {
         console.warn("CoinGecko fetch failed. Proceeding without live USD conversion.");
     }
     
-    // 4. CALCULATE USD Metrics
+    // 5. CALCULATE USD Metrics
     let floorPriceUSD = 'N/A';
-    let marketCapUSD = 'N/A'; // <<< MARKET CAP USD ADDED
+    let marketCapUSD = 'N/A'; 
 
     if (ethUsdRate) {
         if (floorPriceValue > 0) {
             floorPriceUSD = (floorPriceValue * ethUsdRate).toFixed(2);
         }
         if (marketCapETH > 0) {
-            // Convert to integer (no cents for large market cap numbers)
             marketCapUSD = (marketCapETH * ethUsdRate).toFixed(0); 
         }
     }
     
-    // 5. CONSTRUCT FINAL RESPONSE
+    // 6. CONSTRUCT FINAL RESPONSE
     const finalData = {
       price: floorPriceValue.toFixed(4), 
       currency: currency,
       usd: floorPriceUSD, 
-      market_cap_eth: marketCapETH.toFixed(2), // <<< MARKET CAP ETH ADDED
-      market_cap_usd: marketCapUSD,           // <<< MARKET CAP USD ADDED
+      market_cap_eth: marketCapETH.toFixed(2), 
+      market_cap_usd: marketCapUSD,           
       lastUpdated: new Date().toISOString(),
+      supply: totalSupply // Included for completeness
     };
 
     return res.status(200).json({ 
-        message: 'Concurrent fetch successful with Market Cap.',
+        message: 'Concurrent fetch successful with accurate Market Cap.',
         data: finalData
     });
 
