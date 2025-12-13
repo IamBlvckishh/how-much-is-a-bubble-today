@@ -1,16 +1,35 @@
-// public/script.js
+// public/script.js - Optimized for Market Cap Display
+
+/**
+ * Helper to format large numbers (Market Cap) as currency (e.g., $1,250,000)
+ * @param {string} numberString - The USD value string.
+ * @returns {string} Formatted currency string.
+ */
+const formatCurrency = (numberString) => {
+    if (numberString === 'N/A') return 'N/A';
+    const num = parseFloat(numberString);
+    // Format as currency, setting max decimal places to 0 for large Market Cap numbers
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(num);
+};
 
 async function fetchLatestPrice() {
     const usdPriceDisplay = document.getElementById('usd-price');
     const ethPriceDisplay = document.getElementById('eth-price');
+    const marketCapDisplay = document.getElementById('market-cap-display'); // <<< NEW ELEMENT
     const updatedDisplay = document.getElementById('last-updated');
 
+    // 1. Set Loading State
     usdPriceDisplay.textContent = '...';
     ethPriceDisplay.textContent = '...';
+    marketCapDisplay.textContent = 'Market Cap: ...'; // <<< NEW LOADING STATE
     updatedDisplay.textContent = 'Please wait...';
 
     try {
-        // Calls the secure Vercel Serverless Function
         const response = await fetch('/api/cron-update', { method: 'GET' });
         
         if (!response.ok) {
@@ -21,26 +40,36 @@ async function fetchLatestPrice() {
         
         if (result.data) {
             const data = result.data;
+
+            // Format USD price to include commas (for floor price)
+            const formattedUsdPrice = parseFloat(data.usd).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+
+            // 2. Display: Floor Price
+            usdPriceDisplay.textContent = formattedUsdPrice;
+            ethPriceDisplay.textContent = `(${data.price} ${data.currency})`;
+
+            // 3. Display: Market Cap
+            const formattedMarketCap = formatCurrency(data.market_cap_usd);
+            marketCapDisplay.textContent = 
+                `Market Cap: ${data.market_cap_eth} ${data.currency} (${formattedMarketCap})`;
             
-            // Display: USD Price (Bigger and main focus)
-            usdPriceDisplay.textContent = `$${data.usd}`;
-            
-            // Display: ETH Price (Bold, denoted with currency)
-            ethPriceDisplay.textContent = `${data.price} ${data.currency}`;
-            
-            // Display: Last Updated Timestamp
+            // 4. Display: Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
         } else {
-             usdPriceDisplay.textContent = 'No Data';
-             ethPriceDisplay.textContent = 'No Data';
+            usdPriceDisplay.textContent = 'No Data';
+            ethPriceDisplay.textContent = 'No Data';
+            marketCapDisplay.textContent = 'Market Cap: No Data';
         }
 
-
     } catch (error) {
-        console.error("Error loading floor price:", error);
+        console.error("Error loading data:", error);
         usdPriceDisplay.textContent = 'ERROR';
         ethPriceDisplay.textContent = '...';
-        updatedDisplay.textContent = 'Try again later.';
+        marketCapDisplay.textContent = 'Market Cap: ERROR';
+        updatedDisplay.textContent = 'Error loading price. Try refreshing.';
     }
 }
 
