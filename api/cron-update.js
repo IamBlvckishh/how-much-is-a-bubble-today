@@ -6,7 +6,7 @@
 const OPENSEA_API_KEY = process.env.OPENSEA_API_KEY; 
 const COLLECTION_SLUG = "bubbles-by-xcopy"; 
 // !!! CRITICAL: REPLACE THIS WITH THE ACTUAL SMART CONTRACT ADDRESS !!!
-const CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8"; // PLACEHOLDER
+const CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8";
 
 // Public Ethereum Node Endpoint (Highly reliable but rate-limited)
 const ETH_NODE_URL = 'https://eth.public-rpc.com'; 
