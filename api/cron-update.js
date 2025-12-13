@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL OPTIMIZED CORE: Concurrent Fetching
+// api/cron-update.js - FINAL OPTIMIZED CORE: Floor Price + Market Cap
 
 // ----------------------------------------------------
 // ENVIRONMENT VARIABLES & CONFIGURATION
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     return res.status(405).send({ message: 'Only GET or POST requests allowed' });
   }
   
-  console.log(`Starting concurrent floor price update for ${COLLECTION_SLUG}...`);
+  console.log(`Starting concurrent data update for ${COLLECTION_SLUG}...`);
 
   try {
     if (!OPENSEA_API_KEY) {
@@ -37,16 +37,17 @@ export default async function handler(req, res) {
         fetch(ETH_USD_CONVERSION_URL)
     ]);
 
-
     // 2. PROCESS OPENSEA RESPONSE
     if (!openSeaResponse.ok) {
         const errorText = await openSeaResponse.text();
-        console.error(`OpenSea API Error: ${openSeaResponse.status} - ${errorText}`);
-        throw new Error(`OpenSea API error: ${openSeaResponse.status}. Check SLUG or API Key.`);
+        throw new Error(`OpenSea API error: ${openSeaResponse.status}. Response: ${errorText}`);
     }
     const data = await openSeaResponse.json();
     const stats = data.total;
+    
+    // Parse core metrics including Market Cap
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
+    const marketCapETH = parseFloat(stats.market_cap) || 0; // <<< MARKET CAP ADDED
     const currency = stats.floor_price_symbol || 'ETH';
 
 
@@ -59,10 +60,18 @@ export default async function handler(req, res) {
         console.warn("CoinGecko fetch failed. Proceeding without live USD conversion.");
     }
     
-    // 4. CALCULATE USD Metric
+    // 4. CALCULATE USD Metrics
     let floorPriceUSD = 'N/A';
-    if (ethUsdRate && floorPriceValue > 0) {
-        floorPriceUSD = (floorPriceValue * ethUsdRate).toFixed(2);
+    let marketCapUSD = 'N/A'; // <<< MARKET CAP USD ADDED
+
+    if (ethUsdRate) {
+        if (floorPriceValue > 0) {
+            floorPriceUSD = (floorPriceValue * ethUsdRate).toFixed(2);
+        }
+        if (marketCapETH > 0) {
+            // Convert to integer (no cents for large market cap numbers)
+            marketCapUSD = (marketCapETH * ethUsdRate).toFixed(0); 
+        }
     }
     
     // 5. CONSTRUCT FINAL RESPONSE
@@ -70,11 +79,13 @@ export default async function handler(req, res) {
       price: floorPriceValue.toFixed(4), 
       currency: currency,
       usd: floorPriceUSD, 
+      market_cap_eth: marketCapETH.toFixed(2), // <<< MARKET CAP ETH ADDED
+      market_cap_usd: marketCapUSD,           // <<< MARKET CAP USD ADDED
       lastUpdated: new Date().toISOString(),
     };
 
     return res.status(200).json({ 
-        message: 'Concurrent fetch successful.',
+        message: 'Concurrent fetch successful with Market Cap.',
         data: finalData
     });
 
