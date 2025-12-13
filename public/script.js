@@ -1,32 +1,46 @@
-// public/script.js - Updated to handle potential N/A for USD
+// public/script.js
 
 async function fetchLatestPrice() {
-    // ... (unchanged)
-    // ...
+    const usdPriceDisplay = document.getElementById('usd-price');
+    const ethPriceDisplay = document.getElementById('eth-price');
+    const updatedDisplay = document.getElementById('last-updated');
+
+    usdPriceDisplay.textContent = '...';
+    ethPriceDisplay.textContent = '...';
+    updatedDisplay.textContent = 'Please wait...';
+
     try {
-        // ... (unchanged fetch call)
+        // Calls the secure Vercel Serverless Function
+        const response = await fetch('/api/cron-update', { method: 'GET' });
         
+        if (!response.ok) {
+            throw new Error('Failed to fetch price from serverless function.');
+        }
+
         const result = await response.json();
         
         if (result.data) {
             const data = result.data;
             
-            // USD Price: Will display 'N/A' unless you add a second API call for conversion
-            const usdValue = data.usd !== 'N/A' ? `$${data.usd}` : 'USD N/A';
-            usdPriceDisplay.textContent = usdValue;
+            // Display: USD Price (Bigger and main focus)
+            usdPriceDisplay.textContent = `$${data.usd}`;
             
-            // ETH Price
+            // Display: ETH Price (Bold, denoted with currency)
             ethPriceDisplay.textContent = `${data.price} ${data.currency}`;
             
-            // Last Updated Timestamp
+            // Display: Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
         } else {
              usdPriceDisplay.textContent = 'No Data';
              ethPriceDisplay.textContent = 'No Data';
         }
 
+
     } catch (error) {
-        // ... (unchanged)
+        console.error("Error loading floor price:", error);
+        usdPriceDisplay.textContent = 'ERROR';
+        ethPriceDisplay.textContent = '...';
+        updatedDisplay.textContent = 'Try again later.';
     }
 }
 
