@@ -1,35 +1,19 @@
-// api/cron-update.js - Rarible Floor Price (SHAPE L2) + CoinGecko USD Conversion
+// api/cron-update.js - OpenSea Floor Price + CoinGecko USD Conversion
 
-const RARIBLE_API_KEY = process.env.RARIBLE_API_KEY; 
-const CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8"; 
-const BLOCKCHAIN_GROUP = "SHAPE";
-const COLLECTION_ID = `${BLOCKCHAIN_GROUP}:${CONTRACT_ADDRESS}`;
+// ----------------------------------------------------
+// ENVIRONMENT VARIABLES: Ensure these are set in Vercel
+// ----------------------------------------------------
+const OPENSEA_API_KEY = process.env.OPENSEA_API_KEY; 
 
-const FLOOR_PRICE_URL = `https://api.rarible.org/v0.1/data/collections/${COLLECTION_ID}/floorPrice`;
-const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; // New, reliable endpoint
+// ----------------------------------------------------
+// CONFIGURATION: Set the Collection Slug
+// ----------------------------------------------------
+// !!! CRITICAL: YOU MUST REPLACE 'YOUR-OPENSEA-SLUG' with the actual slug
+// Example: 'boredapeyachtclub' 
+const COLLECTION_SLUG = "BUBBLES-BY-XCOPY"; 
 
-/**
- * Helper function to make an authenticated Rarible fetch for Floor Price.
- */
-async function fetchRaribleFloor(url) {
-    if (!RARIBLE_API_KEY) {
-        throw new Error("API Key configuration error: RARIBLE_API_KEY is missing.");
-    }
-    
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: { 
-            'accept': 'application/json',
-            'X-API-KEY': RARIBLE_API_KEY // Authenticated
-        }
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Rarible API error: ${response.status}. Full response: ${errorText}`);
-    }
-    return response.json();
-}
+const OPEN_SEA_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`;
+const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; 
 
 /**
  * Helper function to fetch ETH/USD price from CoinGecko (No API Key required).
@@ -41,7 +25,7 @@ async function fetchEthUsdPrice() {
         const data = await response.json();
         return data.ethereum.usd;
     } catch (error) {
-        console.error("Failed to fetch ETH/USD conversion:", error);
+        console.error("Failed to fetch ETH/USD conversion from CoinGecko:", error);
         return null;
     }
 }
@@ -53,24 +37,40 @@ export default async function handler(req, res) {
     return res.status(405).send({ message: 'Only GET or POST requests allowed' });
   }
   
-  console.log(`Starting floor price update for ${COLLECTION_ID}...`);
+  console.log(`Starting floor price update using OpenSea for ${COLLECTION_SLUG}...`);
 
   try {
-    // 1. Fetch Floor Price (from Rarible, Authenticated)
-    const floorData = await fetchRaribleFloor(FLOOR_PRICE_URL);
-    const floorPriceValue = parseFloat(floorData.value);
-    const currency = floorData.currency?.symbol || 'ETH';
+    // 1. Fetch Floor Price (from OpenSea, Authenticated)
+    const openSeaResponse = await fetch(OPEN_SEA_STATS_URL, {
+        method: 'GET',
+        headers: { 
+            'accept': 'application/json',
+            // OpenSea uses the custom header for V2 API calls
+            'X-API-Key': OPENSEA_API_KEY 
+        }
+    });
+
+    if (!openSeaResponse.ok) {
+        const errorText = await openSeaResponse.text();
+        console.error(`OpenSea API Error: ${openSeaResponse.status} - ${errorText}`);
+        throw new Error(`OpenSea API error: ${openSeaResponse.status}. Check SLUG or API Key.`);
+    }
+
+    const data = await openSeaResponse.json();
     
-    // 2. Fetch ETH/USD Conversion Rate (from CoinGecko, Unauthenticated)
+    // OpenSea V2 returns stats within a 'total' object
+    const stats = data.total;
+    
+    const floorPriceValue = parseFloat(stats.floor_price) || 0;
+    const currency = stats.floor_price_symbol || 'ETH';
+    
+    // 2. Fetch ETH/USD Conversion Rate (from CoinGecko)
     const ethUsdRate = await fetchEthUsdPrice();
 
     // 3. Calculate Final Prices
     let floorPriceUSD = 'N/A';
     
-    if (isNaN(floorPriceValue) || floorPriceValue <= 0) {
-        // If price is 0, we set a default USD N/A but confirm the ETH price is known.
-        console.log("Rarible returned floor price of 0. Collection may have no active listings.");
-    } else if (ethUsdRate) {
+    if (floorPriceValue > 0 && ethUsdRate) {
         floorPriceUSD = (floorPriceValue * ethUsdRate).toFixed(2);
     }
     
@@ -82,12 +82,12 @@ export default async function handler(req, res) {
     };
 
     return res.status(200).json({ 
-        message: 'Floor price via Rarible. USD via CoinGecko.',
+        message: 'Floor price via OpenSea. USD via CoinGecko.',
         data: finalFloorData
     });
 
   } catch (error) {
-    console.error("Error during floor price job:", error);
+    console.error("Error during floor price job (OpenSea):", error);
     return res.status(500).json({ message: `Failed to fetch price: ${error.message}` });
   }
 }
