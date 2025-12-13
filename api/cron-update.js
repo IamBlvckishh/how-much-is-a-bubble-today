@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL OPTIMIZED CODE: OpenSea Floor Price, Volume, Supply, and Market Cap
+// api/cron-update.js - FINAL OPTIMIZED CODE: OpenSea Floor Price, Volume, and Supply (No Market Cap)
 
 // ----------------------------------------------------
 // ENVIRONMENT VARIABLES & CONFIGURATION
@@ -55,8 +55,6 @@ export default async function handler(req, res) {
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
     const totalVolumeValue = parseFloat(stats.volume) || 0;
     const totalSupplyValue = parseInt(stats.total_supply || stats.num_owners) || 0;
-    // PULL MARKET CAP DIRECTLY from OpenSea API
-    const marketCapETH = parseFloat(stats.market_cap) || 0; 
     const currency = stats.floor_price_symbol || 'ETH';
 
 
@@ -72,7 +70,6 @@ export default async function handler(req, res) {
     // 4. CALCULATE USD Metrics
     let floorPriceUSD = 'N/A';
     let totalVolumeUSD = 'N/A';
-    let marketCapUSD = 'N/A';
 
     if (ethUsdRate) {
         if (floorPriceValue > 0) {
@@ -80,9 +77,6 @@ export default async function handler(req, res) {
         }
         if (totalVolumeValue > 0) {
             totalVolumeUSD = (totalVolumeValue * ethUsdRate).toFixed(0);
-        }
-        if (marketCapETH > 0) {
-            marketCapUSD = (marketCapETH * ethUsdRate).toFixed(0);
         }
     }
     
@@ -94,8 +88,6 @@ export default async function handler(req, res) {
       volume: totalVolumeValue.toFixed(2),
       volume_usd: totalVolumeUSD,
       supply: totalSupplyValue,
-      market_cap_eth: marketCapETH.toFixed(2),
-      market_cap_usd: marketCapUSD,
       lastUpdated: new Date().toISOString()
     };
 
