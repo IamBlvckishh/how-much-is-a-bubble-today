@@ -3,35 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bubble-price-tracker</title>
+    <title>Bubble Price Tracker</title>
     <style>
-        /* General Black and White Theme */
+        /* BASE & LAYOUT */
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             text-align: center; 
             padding: 0; 
             margin: 0;
-            background-color: #000; 
-            color: #fff; 
-            height: 100vh;
+            background-color: #000; /* Black background */
+            color: #fff; /* White text */
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-        }
-
-        /* Bubble Container Styling (Floor Price) */
-        .bubble {
-            width: 300px;
-            height: 300px;
-            background: #fff; 
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); 
-            margin: 40px 0 20px 0; 
         }
 
         .title {
@@ -39,17 +25,25 @@
             margin-bottom: 20px;
         }
 
-        /* Price Formatting */
+        /* BUBBLE CONTAINER (THE CORE DESIGN) */
+        .bubble {
+            width: 300px;
+            height: 300px;
+            background: #fff; /* White circle background */
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); /* Subtle white glow */
+            margin: 40px 0 20px 0; 
+        }
+
+        /* FLOOR PRICE TEXT */
         #usd-price-container {
             font-weight: bold;
-            color: #000; 
+            color: #000; /* Black text inside the white bubble */
             margin-bottom: 5px;
-        }
-        .price-label {
-            font-size: 0.5em;
-            display: block;
-            color: #666;
-            margin-top: 5px;
         }
         #usd-price { 
             font-size: 3.5em; 
@@ -60,82 +54,68 @@
             display: block;
         }
 
-        /* 24H/7D CHANGE STYLING */
-        .change-container {
+        /* PRICE CHANGE BAR (INSIDE BUBBLE) */
+        .price-change-bar {
             display: flex;
-            gap: 15px;
-            margin-top: 10px;
-            margin-bottom: 10px;
+            gap: 10px;
+            margin: 10px 0;
         }
         .price-change-metric {
-            font-size: 1.0em;
+            font-size: 0.9em;
             font-weight: bold;
-            color: #000; 
+            padding: 3px 8px;
+            border-radius: 4px;
         }
-        .change-up { color: #00C853; } /* Green */
-        .change-down { color: #D50000; } /* Red */
-        .change-neutral { color: #333; } /* Grey */
+        .change-up { background-color: #00C853; color: #fff; } /* Green */
+        .change-down { background-color: #D50000; color: #fff; } /* Red */
+        .change-neutral { background-color: #aaa; color: #000; } /* Grey */
 
         #eth-price-container {
             color: #333; 
             font-weight: bold;
             font-size: 1.5em; 
         }
-        
-        /* Stats Styling */
-        .stats-container {
-            margin-top: 20px;
-            padding: 10px;
-            border-top: 1px solid #333;
+
+        /* SECONDARY STATS GRID (NEW CLEAN LAYOUT) */
+        .stats-grid-container {
+            padding: 20px;
             width: 90%;
-            max-width: 400px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
+            max-width: 600px;
+            margin-top: 20px;
         }
-        .stat-line {
-            width: 48%; /* Two columns */
-            font-size: 0.95em;
-            font-weight: bold;
-            color: #999;
-            margin-bottom: 15px;
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two equal columns */
+            gap: 20px 30px;
             text-align: left;
         }
-        .stat-value {
-            display: block;
-            color: #fff;
-            font-size: 1.1em;
-            margin-top: 2px;
+        .stat-group {
+            border-left: 3px solid #333;
+            padding-left: 10px;
         }
-
-        /* New Average Price Container */
-        .avg-price-container {
-            border: 1px dashed #333;
-            padding: 10px;
-            margin-bottom: 20px;
-            width: 90%;
-            max-width: 400px;
-            text-align: center;
-        }
-        .avg-price-container p {
-            margin: 0;
-            font-size: 1em;
+        .stat-label {
+            font-size: 0.8em;
             color: #999;
+            margin-bottom: 2px;
+            text-transform: uppercase;
         }
-        #avg-price-display {
-            font-size: 1.5em;
+        .stat-value {
+            font-size: 1.2em;
             font-weight: bold;
             color: #fff;
         }
-
-
-        #last-updated { 
-            color: #999; 
-            font-size: 0.9em; 
-            margin-top: 20px;
+        .stat-value-eth {
+            font-size: 0.9em;
+            color: #666;
+            display: block;
         }
 
-        /* Button Styling */
+        /* FOOTER/REFRESH */
+        #last-updated { 
+            color: #666; 
+            font-size: 0.9em; 
+            margin-top: 30px;
+        }
         .refresh-btn {
             padding: 10px 20px;
             background: #000;
@@ -149,21 +129,34 @@
         .refresh-btn:hover {
             background: #222;
         }
+        
+        /* Responsive adjustments for the grid */
+        @media (max-width: 500px) {
+            .stats-grid {
+                grid-template-columns: 1fr; /* Single column on small screens */
+            }
+            .bubble {
+                width: 250px;
+                height: 250px;
+            }
+            #usd-price { 
+                font-size: 3em; 
+            }
+        }
     </style>
 </head>
 <body>
     <h1 class="title">how much is a bubble today?</h1>
 
     <div class="bubble">
-        <span class="price-label">CURRENT FLOOR PRICE</span>
         <div id="usd-price-container">
             <span id="usd-price">Loading...</span> 
             <span id="usd-currency">USD</span>
         </div>
         
-        <div class="change-container">
-            <div id="price-change-24h" class="price-change-metric">Loading 24h...</div>
-            <div id="price-change-7d" class="price-change-metric">Loading 7d...</div>
+        <div class="price-change-bar">
+            <div id="price-change-24h" class="price-change-metric change-neutral">...</div>
+            <div id="price-change-7d" class="price-change-metric change-neutral">...</div>
         </div>
 
         <div id="eth-price-container">
@@ -171,18 +164,48 @@
         </div>
     </div>
     
-    <div class="avg-price-container">
-        <p>24H AVERAGE SALE PRICE</p>
-        <div id="avg-price-display">Loading...</div>
+    <div class="stats-grid-container">
+        <div class="stats-grid">
+            
+            <div class="stat-group">
+                <p class="stat-label">Market Cap</p>
+                <span id="market-cap-usd-display" class="stat-value">Loading...</span>
+                <span id="market-cap-eth-display" class="stat-value-eth">Loading...</span>
+            </div>
+
+            <div class="stat-group">
+                <p class="stat-label">24H Volume</p>
+                <span id="total-volume-usd-display" class="stat-value">Loading...</span>
+                <span id="total-volume-eth-display" class="stat-value-eth">Loading...</span>
+            </div>
+
+            <div class="stat-group">
+                <p class="stat-label">24H Average Sale</p>
+                <span id="avg-price-display" class="stat-value">Loading...</span>
+                <span id="avg-price-eth-display" class="stat-value-eth">Loading...</span>
+            </div>
+            
+            <div class="stat-group">
+                <p class="stat-label">MC/Volume Ratio</p>
+                <span id="mc-volume-ratio-display" class="stat-value">Loading...</span>
+                <span class="stat-value-eth">Liquidity Indicator</span>
+            </div>
+            
+            <div class="stat-group">
+                <p class="stat-label">Total Supply</p>
+                <span id="total-supply-display" class="stat-value">Loading...</span>
+                <span id="listed-count-display" class="stat-value-eth">Listed: ...</span>
+            </div>
+            
+            <div class="stat-group">
+                <p class="stat-label">Unique Holders</p>
+                <span id="unique-holders-display" class="stat-value">Loading...</span>
+                <span id="listing-ratio-display" class="stat-value-eth">Listing Ratio: ...</span>
+            </div>
+
+        </div>
     </div>
-
-    <div class="stats-container">
-        <p id="market-cap-display" class="stat-line">Market Cap: <span class="stat-value">Loading...</span></p>
-        <p id="total-supply-display" class="stat-line">Total Supply: <span class="stat-value">Loading...</span></p>
-        <p id="mc-volume-ratio-display" class="stat-line">MC / Vol Ratio: <span class="stat-value">Loading...</span></p> <p id="total-volume-display" class="stat-line">Total Volume: <span class="stat-value">Loading...</span></p>
-        <p id="unique-holders-display" class="stat-line">Unique Holders: <span class="stat-value">Loading...</span></p>
-        <p id="listing-ratio-display" class="stat-line">Listing Ratio: <span class="stat-value">Loading...</span></p> </div>
-
+    
     <p id="last-updated">Fetching latest data...</p>
     
     <button class="refresh-btn" onclick="fetchLatestPrice()">Refresh Now</button>
