@@ -1,4 +1,4 @@
-// public/script.js - FINAL VERSION: Dual Volume and Fixed Calculations
+// public/script.js - SIMPLIFIED METRICS: 7D Change Removed
 
 /**
  * Helper to format large numbers (Market Cap, Volume) as currency.
@@ -28,6 +28,9 @@ const formatCount = (count) => {
  */
 const updatePriceChangeDisplay = (elementId, changeString, label) => {
     const changeDisplay = document.getElementById(elementId);
+    // If the element for the 7d change doesn't exist (because we removed it), stop.
+    if (!changeDisplay) return; 
+
     const changeValue = parseFloat(changeString);
     
     changeDisplay.className = 'price-change-metric';
@@ -56,8 +59,8 @@ async function fetchLatestPrice() {
     // Stat Displays
     const usdPriceDisplay = document.getElementById('usd-price');
     const ethPriceDisplay = document.getElementById('eth-price');
-    const volume24hDisplay = document.getElementById('volume-24h-display'); // New ID for 24H Volume
-    const volumeTotalDisplay = document.getElementById('volume-total-display'); // New ID for Total Volume
+    const volume24hDisplay = document.getElementById('volume-24h-display');
+    const volumeTotalDisplay = document.getElementById('volume-total-display');
     const marketCapDisplay = document.getElementById('market-cap-display');
     const supplyDisplay = document.getElementById('total-supply-display'); 
     const holdersDisplay = document.getElementById('unique-holders-display'); 
@@ -67,7 +70,7 @@ async function fetchLatestPrice() {
     usdPriceDisplay.textContent = '...';
     ethPriceDisplay.textContent = '...';
     document.getElementById('price-change-24h').textContent = '...';
-    document.getElementById('price-change-7d').textContent = '...'; 
+    // Removed 7d change loading state
     volume24hDisplay.textContent = '24H Volume: ...';
     volumeTotalDisplay.textContent = 'Total Volume: ...';
     marketCapDisplay.textContent = 'Market Cap: ...';
@@ -95,9 +98,8 @@ async function fetchLatestPrice() {
             usdPriceDisplay.textContent = formattedUsdPrice;
             ethPriceDisplay.textContent = `(${data.price} ${data.currency})`;
 
-            // 3. Display: 24h & 7d Change (NOW RELIABLE)
+            // 3. Display: 24h Change (7D call is now removed)
             updatePriceChangeDisplay('price-change-24h', data.price_change_24h, '24h');
-            updatePriceChangeDisplay('price-change-7d', data.price_change_7d, '7d'); 
 
             // 4. Display: 24H Volume
             const formattedVolume24h = formatCurrency(data.volume_24h_usd); 
