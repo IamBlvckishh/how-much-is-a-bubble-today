@@ -1,4 +1,4 @@
-// public/script.js - ADDED LAST POP TIME
+// public/script.js - ADDED ROBUST DATE CHECK FOR 'LAST POP'
 
 /**
  * Helper to format large numbers (Market Cap, Volume) as currency.
@@ -64,7 +64,7 @@ async function fetchLatestPrice() {
     const supplyDisplay = document.getElementById('total-supply-display'); 
     const holdersDisplay = document.getElementById('unique-holders-display'); 
     const poppedDisplay = document.getElementById('popped-bubbles-display'); 
-    const lastPopDisplay = document.getElementById('last-pop-display'); // <<< NEW DISPLAY
+    const lastPopDisplay = document.getElementById('last-pop-display'); 
     const updatedDisplay = document.getElementById('last-updated');
 
     // 1. Set Loading State
@@ -77,7 +77,7 @@ async function fetchLatestPrice() {
     supplyDisplay.textContent = 'Current Supply: ...'; 
     holdersDisplay.textContent = 'Unique Holders: ...'; 
     poppedDisplay.textContent = 'Total Popped: ...'; 
-    lastPopDisplay.textContent = 'Last Pop: ...'; // <<< NEW LOADING
+    lastPopDisplay.textContent = 'Last Pop: ...'; 
     updatedDisplay.textContent = 'Please wait...';
 
     try {
@@ -125,12 +125,23 @@ async function fetchLatestPrice() {
             // 8. Display: Popped Bubbles
             poppedDisplay.textContent = `Total Popped: ${formatCount(data.popped)}`; 
 
-            // 9. Display: Last Pop Time
+            // 9. Display: Last Pop Time (ROBUST CHECK ADDED HERE)
             let popTimeText = 'N/A';
-            if (data.last_pop_time && data.last_pop_time !== 'N/A') {
-                popTimeText = new Date(data.last_pop_time).toLocaleString();
+            const rawPopTime = data.last_pop_time;
+
+            if (rawPopTime && typeof rawPopTime === 'string' && rawPopTime.startsWith('20')) {
+                 // Attempt to parse only if the string looks like a date (starts with a year)
+                const date = new Date(rawPopTime);
+                if (!isNaN(date)) {
+                    popTimeText = date.toLocaleString();
+                } else {
+                    popTimeText = rawPopTime; // Show the raw string if parsing fails
+                }
+            } else {
+                popTimeText = rawPopTime; // Show N/A or any backend error message
             }
-            lastPopDisplay.textContent = `Last Pop: ${popTimeText}`; // <<< NEW DISPLAY
+            
+            lastPopDisplay.textContent = `Last Pop: ${popTimeText}`; 
 
             // 10. Display: Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
