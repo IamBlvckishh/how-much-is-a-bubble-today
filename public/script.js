@@ -1,19 +1,17 @@
-// public/script.js - FINAL STABLE CORE: Bubble Design & All Metrics
+// public/script.js - STABLE VERSION: Simple Metrics & Bubble Design
 
 /**
- * Helper to format large numbers (Market Cap, Volume) as compact currency.
+ * Helper to format large numbers (Market Cap, Volume) as currency.
  */
 const formatCurrency = (numberString) => {
     if (numberString === 'N/A') return 'N/A';
     const num = parseFloat(numberString);
-    const formatter = new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
-        notation: 'compact',
-        compactDisplay: 'short',
-        maximumFractionDigits: (num >= 1000000000) ? 1 : 0
-    });
-    return formatter.format(num);
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(num);
 };
 
 /**
@@ -55,31 +53,24 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
 
 
 async function fetchLatestPrice() {
-    // 1. Get Elements
-    // Floor Price Displays
     const usdPriceDisplay = document.getElementById('usd-price');
     const ethPriceDisplay = document.getElementById('eth-price');
-
-    // Advanced Stats Displays (grouped by their new IDs)
-    const displays = {
-        marketCapUsd: document.getElementById('market-cap-usd-display'),
-        marketCapEth: document.getElementById('market-cap-eth-display'),
-        volumeUsd: document.getElementById('total-volume-usd-display'),
-        volumeEth: document.getElementById('total-volume-eth-display'),
-        avgPriceUsd: document.getElementById('avg-price-display'),
-        avgPriceEth: document.getElementById('avg-price-eth-display'),
-        mcVolumeRatio: document.getElementById('mc-volume-ratio-display'),
-        supply: document.getElementById('total-supply-display'),
-        holders: document.getElementById('unique-holders-display'),
-        listedCount: document.getElementById('listed-count-display'),
-        listingRatio: document.getElementById('listing-ratio-display'),
-    };
+    const marketCapDisplay = document.getElementById('market-cap-display');
+    const volumeDisplay = document.getElementById('total-volume-display');
+    const supplyDisplay = document.getElementById('total-supply-display'); 
+    const holdersDisplay = document.getElementById('unique-holders-display'); 
     const updatedDisplay = document.getElementById('last-updated');
 
-    // 2. Set Loading State
+    // 1. Set Loading State
     usdPriceDisplay.textContent = '...';
-    updatedDisplay.textContent = 'Fetching latest data...';
-    Object.values(displays).forEach(el => el.textContent = '...');
+    ethPriceDisplay.textContent = '...';
+    document.getElementById('price-change-24h').textContent = '...';
+    document.getElementById('price-change-7d').textContent = '...'; 
+    marketCapDisplay.textContent = 'Market Cap: ...';
+    volumeDisplay.textContent = 'Total Volume: ...';
+    supplyDisplay.textContent = 'Total Supply: ...'; 
+    holdersDisplay.textContent = 'Unique Holders: ...'; 
+    updatedDisplay.textContent = 'Please wait...';
 
     try {
         const response = await fetch('/api/cron-update', { method: 'GET' });
@@ -93,9 +84,7 @@ async function fetchLatestPrice() {
         if (result.data) {
             const data = result.data;
 
-            // --- PRIMARY METRICS ---
-            
-            // 2. Floor Price
+            // 2. Display: Floor Price
             const formattedUsdPrice = parseFloat(data.usd).toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -103,37 +92,26 @@ async function fetchLatestPrice() {
             usdPriceDisplay.textContent = formattedUsdPrice;
             ethPriceDisplay.textContent = `(${data.price} ${data.currency})`;
 
-            // 3. Price Changes
+            // 3. Display: 24h & 7d Change
             updatePriceChangeDisplay('price-change-24h', data.price_change_24h, '24h');
             updatePriceChangeDisplay('price-change-7d', data.price_change_7d, '7d'); 
 
-            // --- SECONDARY METRICS ---
-
-            // 4. Market Cap
-            displays.marketCapUsd.textContent = formatCurrency(data.market_cap_usd);
-            displays.marketCapEth.textContent = `${data.market_cap_eth} ${data.currency}`;
+            // 4. Display: Market Cap
+            const formattedMarketCap = formatCurrency(data.market_cap_usd);
+            marketCapDisplay.textContent = 
+                `Market Cap: ${data.market_cap_eth} ${data.currency} (${formattedMarketCap})`;
             
-            // 5. Volume
-            displays.volumeUsd.textContent = formatCurrency(data.volume_usd); 
-            displays.volumeEth.textContent = `${data.volume} ${data.currency}`;
+            // 5. Display: Volume
+            const formattedVolume = formatCurrency(data.volume_usd); 
+            volumeDisplay.textContent = 
+                `Total Volume: ${data.volume} ${data.currency} (${formattedVolume})`;
             
-            // 6. Average Price
-            displays.avgPriceUsd.textContent = formatCurrency(data.avg_price_usd);
-            displays.avgPriceEth.textContent = `${data.avg_price_24h} ${data.currency}`;
+            // 6. Display: Supply & Holders
+            supplyDisplay.textContent = `Total Supply: ${formatCount(data.supply)}`; 
+            holdersDisplay.textContent = `Unique Holders: ${formatCount(data.holders)}`; 
             
-            // 7. Supply & Holders
-            displays.supply.textContent = formatCount(data.supply);
-            displays.holders.textContent = formatCount(data.holders);
-
-            // 8. Listing Ratio
-            displays.listedCount.textContent = `Listed: ${formatCount(data.listed_count)}`;
-            displays.listingRatio.textContent = `Ratio: ${data.listing_ratio}%`;
-
-            // 9. MC/Volume Ratio
-            displays.mcVolumeRatio.textContent = data.mc_volume_ratio;
-            
-            // 10. Last Updated Timestamp
-            updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleTimeString()} (Data is often delayed by OpenSea)`;
+            // 7. Display: Last Updated Timestamp
+            updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
         } else {
              updatedDisplay.textContent = `Data not available.`;
         }
