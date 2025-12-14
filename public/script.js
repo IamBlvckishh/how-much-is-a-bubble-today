@@ -1,4 +1,4 @@
-// public/script.js - STABLE VERSION: Simple Metrics & Bubble Design
+// public/script.js - FINAL VERSION: Dual Volume and Fixed Calculations
 
 /**
  * Helper to format large numbers (Market Cap, Volume) as currency.
@@ -53,10 +53,12 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
 
 
 async function fetchLatestPrice() {
+    // Stat Displays
     const usdPriceDisplay = document.getElementById('usd-price');
     const ethPriceDisplay = document.getElementById('eth-price');
+    const volume24hDisplay = document.getElementById('volume-24h-display'); // New ID for 24H Volume
+    const volumeTotalDisplay = document.getElementById('volume-total-display'); // New ID for Total Volume
     const marketCapDisplay = document.getElementById('market-cap-display');
-    const volumeDisplay = document.getElementById('total-volume-display');
     const supplyDisplay = document.getElementById('total-supply-display'); 
     const holdersDisplay = document.getElementById('unique-holders-display'); 
     const updatedDisplay = document.getElementById('last-updated');
@@ -66,8 +68,9 @@ async function fetchLatestPrice() {
     ethPriceDisplay.textContent = '...';
     document.getElementById('price-change-24h').textContent = '...';
     document.getElementById('price-change-7d').textContent = '...'; 
+    volume24hDisplay.textContent = '24H Volume: ...';
+    volumeTotalDisplay.textContent = 'Total Volume: ...';
     marketCapDisplay.textContent = 'Market Cap: ...';
-    volumeDisplay.textContent = '24H Volume: ...'; // Updated label
     supplyDisplay.textContent = 'Total Supply: ...'; 
     holdersDisplay.textContent = 'Unique Holders: ...'; 
     updatedDisplay.textContent = 'Please wait...';
@@ -92,25 +95,30 @@ async function fetchLatestPrice() {
             usdPriceDisplay.textContent = formattedUsdPrice;
             ethPriceDisplay.textContent = `(${data.price} ${data.currency})`;
 
-            // 3. Display: 24h & 7d Change
+            // 3. Display: 24h & 7d Change (NOW RELIABLE)
             updatePriceChangeDisplay('price-change-24h', data.price_change_24h, '24h');
             updatePriceChangeDisplay('price-change-7d', data.price_change_7d, '7d'); 
 
-            // 4. Display: Market Cap
+            // 4. Display: 24H Volume
+            const formattedVolume24h = formatCurrency(data.volume_24h_usd); 
+            volume24hDisplay.textContent = 
+                `24H Volume: ${data.volume_24h} ${data.currency} (${formattedVolume24h})`;
+
+            // 5. Display: Total Volume
+            const formattedVolumeTotal = formatCurrency(data.volume_total_usd); 
+            volumeTotalDisplay.textContent = 
+                `Total Volume: ${data.volume_total} ${data.currency} (${formattedVolumeTotal})`;
+            
+            // 6. Display: Market Cap
             const formattedMarketCap = formatCurrency(data.market_cap_usd);
             marketCapDisplay.textContent = 
                 `Market Cap: ${data.market_cap_eth} ${data.currency} (${formattedMarketCap})`;
             
-            // 5. Display: 24H Volume
-            const formattedVolume = formatCurrency(data.volume_usd); 
-            volumeDisplay.textContent = 
-                `24H Volume: ${data.volume} ${data.currency} (${formattedVolume})`;
-            
-            // 6. Display: Supply & Holders
+            // 7. Display: Supply & Holders
             supplyDisplay.textContent = `Total Supply: ${formatCount(data.supply)}`; 
             holdersDisplay.textContent = `Unique Holders: ${formatCount(data.holders)}`; 
             
-            // 7. Display: Last Updated Timestamp
+            // 8. Display: Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
         } else {
              updatedDisplay.textContent = `Data not available.`;
