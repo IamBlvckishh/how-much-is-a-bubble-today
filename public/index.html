@@ -44,11 +44,9 @@
             font-weight: bold;
             color: #000; 
             margin-bottom: 5px;
-            /* Allow the container to use more vertical space */
             padding-top: 10px;
         }
         #usd-price { 
-            /* Significantly larger font to fill the space */
             font-size: 4.5em; 
             line-height: 1.1;
         }
@@ -59,14 +57,12 @@
 
         /* 24H CHANGE STYLING (SMALLER) */
         .change-container {
-            /* Center the single 24h metric */
             display: flex;
             gap: 0;
             margin-top: 5px;
             margin-bottom: 5px;
         }
         #price-change-24h {
-            /* Smaller font size for 24h change */
             font-size: 0.9em; 
             font-weight: bold;
             color: #000;
@@ -78,9 +74,9 @@
         #eth-price-container {
             color: #333; 
             font-weight: bold;
-            font-size: 1.2em; /* Slightly smaller ETH price */
-            padding-bottom: 5px; /* Reduced padding here */
-            padding-top: 5px; /* Added padding here */
+            font-size: 1.2em; 
+            padding-bottom: 5px;
+            padding-top: 5px; 
         }
         
         /* Stats Styling: THE TRAY DESIGN */
@@ -117,7 +113,6 @@
         /* Buy Now Button Styling */
         .buy-now-btn {
             padding: 15px 30px;
-            /* High visibility color */
             background: #2081e2; 
             color: #fff;
             border: none;
@@ -176,10 +171,12 @@
     </a>
 
     <div class="stats-container">
+        <p id="popped-bubbles-display" class="stat-line">Total Popped: Loading...</p> 
+        <p id="last-pop-display" class="stat-line">Last Pop: Loading...</p> 
         <p id="volume-24h-display" class="stat-line">24H Volume: Loading...</p> 
         <p id="volume-total-display" class="stat-line">Total Volume: Loading...</p>
         <p id="market-cap-display" class="stat-line">Market Cap: Loading...</p>
-        <p id="total-supply-display" class="stat-line">Total Supply: Loading...</p>
+        <p id="total-supply-display" class="stat-line">Current Supply: Loading...</p>
         <p id="unique-holders-display" class="stat-line">Unique Holders: Loading...</p>
     </div>
 
