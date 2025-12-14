@@ -1,8 +1,9 @@
-// public/script.js - ADDICTIVE GAME LOOP & LOCAL STORAGE IMPLEMENTATION
+// public/script.js - ADDICTIVE GAME LOOP WITH MILESTONE RESET
 
-/**
- * Helper to format large numbers (Market Cap, Volume) as currency.
- */
+// =========================================================
+// STATS HELPER FUNCTIONS
+// =========================================================
+
 const formatCurrency = (numberString) => {
     if (numberString === 'N/A') return 'N/A';
     const num = parseFloat(numberString);
@@ -14,17 +15,11 @@ const formatCurrency = (numberString) => {
     }).format(num);
 };
 
-/**
- * Helper to format the unique holder/supply counts.
- */
 const formatCount = (count) => {
     if (isNaN(count)) return 'N/A';
     return count.toLocaleString('en-US');
 };
 
-/**
- * Helper to format the price change percentage and apply color class to the element.
- */
 const updatePriceChangeDisplay = (elementId, changeString, label) => {
     const changeDisplay = document.getElementById(elementId);
     if (!changeDisplay) return 0;
@@ -54,14 +49,63 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
     return changeValue; 
 };
 
+
 // =========================================================
-// ADDICTIVE MINI-GAME LOGIC (New & Improved)
+// ADDICTIVE MINI-GAME LOGIC
 // =========================================================
 
 const POP_STORAGE_KEY = 'bubblePopCount';
+const MILESTONE = 100;
+const INITIAL_SIZE = 120; // Matches CSS
+const SIZE_DECREMENT = 0.5; // Size reduction per click (in pixels)
+
 let userPops = 0;
 const popButton = document.getElementById('mini-bubble-btn');
 const popCountDisplay = document.getElementById('game-pop-count');
+const milestoneMessage = document.getElementById('milestone-message');
+
+
+/**
+ * Sets the button size based on pops, clamping at a minimum of 60px.
+ */
+function updateButtonSize() {
+    if (!popButton) return;
+    
+    // Calculate new size based on pops
+    const newSize = Math.max(60, INITIAL_SIZE - (userPops % MILESTONE) * SIZE_DECREMENT);
+    
+    popButton.style.width = `${newSize}px`;
+    popButton.style.height = `${newSize}px`;
+    popButton.textContent = 'POP IT';
+}
+
+
+/**
+ * Resets the game or prepares for the next round.
+ * @param {boolean} keepPopping - If true, continues; if false, resets total score.
+ */
+function resetGame(keepPopping) {
+    if (keepPopping) {
+        // Option YES: Keep the total score, but visually reset the loop
+        updateButtonSize(); // Resets size back to INITIAL_SIZE
+        milestoneMessage.style.display = 'none';
+        popButton.disabled = false;
+        
+    } else {
+        // Option NO: Reset everything
+        userPops = Math.floor(userPops / MILESTONE) * MILESTONE; // Reset pops to the last milestone
+        localStorage.setItem(POP_STORAGE_KEY, userPops);
+        popCountDisplay.textContent = formatCount(userPops);
+        
+        milestoneMessage.style.display = 'none';
+        popButton.disabled = false;
+        
+        // Final reset logic for the button's appearance
+        popButton.style.width = `${INITIAL_SIZE}px`;
+        popButton.style.height = `${INITIAL_SIZE}px`;
+    }
+}
+
 
 /**
  * Initializes the game state from local storage.
@@ -70,68 +114,54 @@ function initializeGame() {
     const storedPops = localStorage.getItem(POP_STORAGE_KEY);
     userPops = storedPops ? parseInt(storedPops) : 0;
     popCountDisplay.textContent = formatCount(userPops);
-    updateButtonDifficulty();
+    updateButtonSize();
 }
 
-/**
- * Updates the button's appearance based on the user's total pops (progression).
- */
-function updateButtonDifficulty() {
-    if (!popButton) return;
-    
-    // Reset classes
-    popButton.className = '';
-    popButton.style.width = '80px';
-    popButton.style.height = '80px';
-    
-    if (userPops >= 500) {
-        // Advanced: Smaller target, faster pop/reappear animation
-        popButton.style.width = '60px';
-        popButton.style.height = '60px';
-        popButton.textContent = 'FAST!';
-    } else if (userPops >= 100) {
-        // Intermediate: Slightly faster pop/reappear
-        popButton.textContent = 'POP IT!';
-    } else {
-        // Beginner
-        popButton.textContent = 'POP!';
-    }
-}
 
 /**
  * Handles the click event, updating state and providing visual feedback.
  */
 function handlePop() {
-    if (!popButton) return;
+    if (popButton.disabled) return;
 
     // 1. Increment Count & Persist
     userPops++;
     localStorage.setItem(POP_STORAGE_KEY, userPops);
     popCountDisplay.textContent = formatCount(userPops);
 
-    // 2. Update Difficulty/Progression
-    updateButtonDifficulty();
-
-    // 3. Visual Feedback: The Button Jump/Wiggle Reward
-    // Temporarily apply a class for a quick, satisfying wiggle animation
-    popButton.style.transform = 'scale(0.8) rotate(5deg)'; 
+    // 2. Shrink and Energy Field Animation
+    updateButtonSize();
+    popButton.classList.add('energy-field');
     setTimeout(() => {
-        popButton.style.transform = ''; // Reset transform
-    }, 50); 
-    
-    // Optional: Add a brief flash to the count display
-    popCountDisplay.style.color = 'yellow';
-    setTimeout(() => {
-        popCountDisplay.style.color = '';
-    }, 100);
+        popButton.classList.remove('energy-field');
+    }, 200);
 
-    // Optional: Check for major milestone (e.g., alert the user)
-    if (userPops === 100 || userPops === 500) {
-        alert(`Congratulations! You've popped ${userPops} bubbles!`);
+    // 3. Milestone Check
+    if (userPops > 0 && userPops % MILESTONE === 0) {
+        popButton.disabled = true; // Disable clicking during the choice
+        showMilestoneMessage();
     }
 }
 
-// Attach the new handler
+
+/**
+ * Displays the "Keep Poppin?" choice.
+ */
+function showMilestoneMessage() {
+    milestoneMessage.innerHTML = `
+        <p>You hit ${userPops} pops! Do you want to keep poppin'?</p>
+        <button id="milestone-yes">YES (Keep Score & Start Over)</button>
+        <button id="milestone-no">NO (Stop Here)</button>
+    `;
+    milestoneMessage.style.display = 'block';
+
+    // Attach event listeners for the choices
+    document.getElementById('milestone-yes').onclick = () => resetGame(true);
+    document.getElementById('milestone-no').onclick = () => resetGame(false);
+}
+
+
+// Attach the main handler
 if (popButton) {
     popButton.addEventListener('click', handlePop);
     initializeGame();
@@ -142,10 +172,7 @@ if (popButton) {
 
 
 async function fetchLatestPrice() {
-    // Get the main bubble element for animation
     const bubbleElement = document.getElementById('price-bubble');
-    
-    // Stat Displays
     const usdPriceDisplay = document.getElementById('usd-price');
     const ethPriceDisplay = document.getElementById('eth-price');
     const marketCapDisplay = document.getElementById('market-cap-display');
@@ -162,12 +189,9 @@ async function fetchLatestPrice() {
         dynamicTitle.textContent = "how much is a bubble today?";
     }
 
-    // 1. START ANIMATION: Bubble Pop Refresh
     bubbleElement.style.transform = 'scale(0.9)'; 
     refreshButton.disabled = true;
     updatedDisplay.textContent = 'Refreshing data...';
-
-    // 2. Set Loading State
     bubbleElement.style.opacity = '0.5';
 
     try {
@@ -182,7 +206,7 @@ async function fetchLatestPrice() {
         if (result.data) {
             const data = result.data;
 
-            // 3. Display: Floor Price
+            // Stats Update (Unchanged)
             const formattedUsdPrice = parseFloat(data.usd).toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -190,10 +214,8 @@ async function fetchLatestPrice() {
             usdPriceDisplay.textContent = formattedUsdPrice;
             ethPriceDisplay.textContent = `(${data.price} ${data.currency})`;
 
-            // 4. Display: 24h Change & Get Value for Pulse
             const changeValue = updatePriceChangeDisplay('price-change-24h', data.price_change_24h, '24h');
             
-            // 5. Apply Pulse Effect
             bubbleElement.classList.remove('pulse-up', 'pulse-down', 'pulse-neutral');
             if (changeValue > 0.1) {
                 bubbleElement.classList.add('pulse-up');
@@ -203,25 +225,20 @@ async function fetchLatestPrice() {
                 bubbleElement.classList.add('pulse-neutral');
             }
             
-            // 6. Populate Table 1: Market Data
             const formattedMarketCap = formatCurrency(data.market_cap_usd);
             marketCapDisplay.textContent = 
                 `${data.market_cap_eth} ${data.currency} (${formattedMarketCap})`;
-
             const formattedVolume24h = formatCurrency(data.volume_24h_usd); 
             volume24hDisplay.textContent = 
                 `${data.volume_24h} ${data.currency} (${formattedVolume24h})`;
-
             const formattedVolumeTotal = formatCurrency(data.volume_total_usd); 
             volumeTotalDisplay.textContent = 
                 `${data.volume_total} ${data.currency} (${formattedVolumeTotal})`;
             
-            // 7. Populate Table 2: Supply Data
             poppedDisplay.textContent = formatCount(data.popped); 
             supplyDisplay.textContent = formatCount(data.supply); 
             holdersDisplay.textContent = formatCount(data.holders); 
             
-            // 8. Display: Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
         } else {
              updatedDisplay.textContent = `Data not available.`;
@@ -233,13 +250,11 @@ async function fetchLatestPrice() {
         updatedDisplay.textContent = `Error fetching data: ${error.message}`;
         bubbleElement.classList.add('pulse-down'); 
     } finally {
-        // 9. END ANIMATION: Restore and enable button
         bubbleElement.style.transform = 'scale(1)'; 
         bubbleElement.style.opacity = '1';
         refreshButton.disabled = false;
     }
 }
 
-// Call the function and initialize the game when the page loads
-fetchLatestPrice();
-// Since initializeGame() is called within the game logic block, it handles startup.
+// Ensure the game is initialized on load
+// fetchLatestPrice(); // Already called below
