@@ -64,8 +64,7 @@
         .price-change-metric {
             font-size: 1.0em;
             font-weight: bold;
-            /* Default color - will be overridden by script */
-            color: #000; 
+            color: #000; /* Default color - will be overridden by script */
         }
         .change-up { color: #00C853; } /* Green */
         .change-down { color: #D50000; } /* Red */
@@ -77,21 +76,29 @@
             font-size: 1.5em; 
         }
         
-        /* Stats Styling */
+        /* Stats Styling: THE TRAY DESIGN */
         .stats-container {
             margin-top: 20px;
-            padding: 10px;
-            border-top: 1px solid #333;
+            padding: 20px;
+            background-color: #1a1a1a; /* Darker background for the tray */
+            border-radius: 8px;
             width: 90%;
-            max-width: 400px;
-            display: flex;
-            flex-direction: column;
+            max-width: 450px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
         }
         .stat-line {
             font-size: 1.1em;
             font-weight: bold;
-            color: #999;
+            color: #ccc;
             margin-bottom: 15px;
+            text-align: left;
+            border-bottom: 1px dashed #333;
+            padding-bottom: 10px;
+        }
+        .stat-line:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
         }
         
         #last-updated { 
@@ -136,8 +143,8 @@
     </div>
     
     <div class="stats-container">
+        <p id="total-volume-display" class="stat-line">24H Volume: Loading...</p> 
         <p id="market-cap-display" class="stat-line">Market Cap: Loading...</p>
-        <p id="total-volume-display" class="stat-line">Total Volume: Loading...</p>
         <p id="total-supply-display" class="stat-line">Total Supply: Loading...</p>
         <p id="unique-holders-display" class="stat-line">Unique Holders: Loading...</p>
     </div>
