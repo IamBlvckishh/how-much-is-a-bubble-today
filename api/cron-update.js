@@ -1,4 +1,4 @@
-// api/cron-update.js - FIXED: LAST POP/BURN TRIGGER using ALCHEMY
+// api/cron-update.js - FINAL FIXES: Negative Popped Value Guard & Robust Burn Check
 
 // ----------------------------------------------------
 // Caching Variables
@@ -23,11 +23,8 @@ const OPEN_SEA_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTI
 const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; 
 
 // --- ETH/ERC-721 Event Signatures and Addresses ---
-// Signature for Transfer(address,address,uint256) is: 0xddf252ad1be2c89b69c2b068fc378aa952ba7be494488d0d161a87693006649f
 const TRANSFER_EVENT_TOPIC = "0xddf252ad1be2c89b69c2b068fc378aa952ba7be494488d0d161a87693006649f";
-// The zero address, used as the 'to' address in the Transfer event for a burn
 const BURN_ADDRESS_TOPIC = "0x0000000000000000000000000000000000000000000000000000000000000000"; 
-// Topic 2 is the 'to' address (index 2 of the Transfer signature)
 
 
 // JSON-RPC Payload (for total supply, remains the same)
@@ -44,35 +41,48 @@ const TOTAL_SUPPLY_PAYLOAD = {
 // ----------------------------------------------------
 async function fetchLastBurnEvent(nodeUrl) {
     if (!ALCHEMY_API_KEY) return 'N/A';
-
-    // Alchemy payload to search the log for the latest burn event
-    const BURN_LOG_PAYLOAD = {
-        jsonrpc: "2.0",
-        id: 2,
-        method: "eth_getLogs",
-        params: [{
-            address: CONTRACT_ADDRESS,
-            // Search from a reasonably recent block back to the start
-            fromBlock: "0x" + (await fetchBlockNumber(nodeUrl) - 50000).toString(16), 
-            toBlock: "latest",
-            topics: [
-                TRANSFER_EVENT_TOPIC, // Topic 0: The Transfer event signature
-                null, // Topic 1: The 'from' address (can be anything)
-                BURN_ADDRESS_TOPIC // Topic 2: The 'to' address (MUST be the zero address for a burn)
-            ]
-        }]
-    };
     
+    // We will search a generous window of the last 100,000 blocks
+    const SEARCH_BLOCKS = 100000;
+
     try {
+        const currentBlock = await fetchBlockNumber(nodeUrl);
+        const fromBlock = "0x" + (currentBlock - SEARCH_BLOCKS).toString(16);
+        const toBlock = "latest";
+
+        const BURN_LOG_PAYLOAD = {
+            jsonrpc: "2.0",
+            id: 2,
+            method: "eth_getLogs",
+            params: [{
+                address: CONTRACT_ADDRESS,
+                fromBlock: fromBlock, 
+                toBlock: toBlock,
+                topics: [
+                    TRANSFER_EVENT_TOPIC, 
+                    null, 
+                    BURN_ADDRESS_TOPIC 
+                ]
+            }]
+        };
+        
         const response = await fetch(nodeUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(BURN_LOG_PAYLOAD)
         });
         
-        if (!response.ok) return 'N/A';
+        if (!response.ok) {
+            console.error(`Alchemy log search failed: ${response.status}`);
+            return 'N/A';
+        }
         
         const json = await response.json();
+        
+        if (json.error) {
+             console.error(`Alchemy log search error: ${json.error.message}`);
+             return 'N/A';
+        }
         
         if (json.result && json.result.length > 0) {
             // Find the log entry with the highest blockNumber (most recent)
@@ -81,11 +91,11 @@ async function fetchLastBurnEvent(nodeUrl) {
 
             // Fetch the timestamp of the block that contains the latest burn transaction
             const blockTimestamp = await fetchBlockTimestamp(nodeUrl, latestLog.blockHash);
-            return blockTimestamp; // Returns an ISO string like '2025-12-14T...'
+            return blockTimestamp; 
         }
         return 'N/A';
     } catch (error) {
-        console.error("Failed to fetch burn log:", error.message);
+        console.error("Critical error in fetchLastBurnEvent:", error.message);
         return 'N/A';
     }
 }
@@ -176,7 +186,6 @@ export default async function handler(req, res) {
         }),
         fetch(ETH_USD_CONVERSION_URL),
         fetchContractSupply(ETH_NODE_URL),
-        // FIXED CALL: Fetch last burn time from Alchemy
         fetchLastBurnEvent(ETH_NODE_URL) 
     ]);
 
@@ -212,8 +221,8 @@ export default async function handler(req, res) {
         totalSupply = uniqueOwners;
     }
     
-    // --- CALCULATE POPPED BUBBLES ---
-    const poppedBubbles = INITIAL_SUPPLY - totalSupply;
+    // --- CALCULATE POPPED BUBBLES (WITH NEGATIVE GUARD) ---
+    const poppedBubbles = Math.max(0, INITIAL_SUPPLY - totalSupply);
 
     // 5. CALCULATE MARKET CAP
     const marketCapETH = floorPriceValue * totalSupply; 
@@ -261,7 +270,7 @@ export default async function handler(req, res) {
       lastUpdated: new Date().toISOString(),
       supply: totalSupply,
       popped: poppedBubbles,
-      last_pop_time: lastPopTime // Now correctly sourced from the contract burn event
+      last_pop_time: lastPopTime 
     };
 
     // 8. UPDATE CACHE
