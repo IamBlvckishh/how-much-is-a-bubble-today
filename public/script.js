@@ -67,7 +67,7 @@ async function fetchLatestPrice() {
     document.getElementById('price-change-24h').textContent = '...';
     document.getElementById('price-change-7d').textContent = '...'; 
     marketCapDisplay.textContent = 'Market Cap: ...';
-    volumeDisplay.textContent = 'Total Volume: ...';
+    volumeDisplay.textContent = '24H Volume: ...'; // Updated label
     supplyDisplay.textContent = 'Total Supply: ...'; 
     holdersDisplay.textContent = 'Unique Holders: ...'; 
     updatedDisplay.textContent = 'Please wait...';
@@ -101,10 +101,10 @@ async function fetchLatestPrice() {
             marketCapDisplay.textContent = 
                 `Market Cap: ${data.market_cap_eth} ${data.currency} (${formattedMarketCap})`;
             
-            // 5. Display: Volume
+            // 5. Display: 24H Volume
             const formattedVolume = formatCurrency(data.volume_usd); 
             volumeDisplay.textContent = 
-                `Total Volume: ${data.volume} ${data.currency} (${formattedVolume})`;
+                `24H Volume: ${data.volume} ${data.currency} (${formattedVolume})`;
             
             // 6. Display: Supply & Holders
             supplyDisplay.textContent = `Total Supply: ${formatCount(data.supply)}`; 
