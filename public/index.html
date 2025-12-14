@@ -184,7 +184,7 @@
             100% { box-shadow: 0 0 30px 10px rgba(255, 255, 255, 0), inset 0 0 5px rgba(255, 255, 255, 0.5); }
         }
 
-        /* Milestone Message Styling - This is the modal/pop-up */
+        /* Milestone Message POPUP (This now contains the billboard) */
         #milestone-message {
             position: absolute;
             top: 0;
@@ -200,66 +200,81 @@
             align-items: center;
             text-align: center;
             z-index: 10;
-        }
-
-        #milestone-message p {
-            font-size: 1.5em;
-            color: #ffcc00; /* Highlighted message color */
-            margin-bottom: 20px;
-            text-shadow: 0 0 5px #ffcc0080;
+            color: #ffcc00;
         }
         
-        .milestone-buttons button {
-            padding: 10px 20px;
-            margin: 0 10px;
+        #milestone-message p {
+            font-size: 1.3em;
+            color: #fff; 
+            margin-bottom: 10px;
+        }
+
+        /* Billboard Message inside the Popup */
+        #billboard-message {
+            color: #ffcc00; /* Highlighted text color for the message */
+            font-size: 1.5em; 
+            font-weight: bold;
+            margin: 10px 0 20px 0;
+            padding: 10px;
+            border: 1px solid #ffcc00;
+            border-radius: 5px;
+            word-wrap: break-word;
+        }
+
+        .milestone-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        #copy-billboard-btn {
+            background-color: #fff;
+            color: #000;
             border: none;
+            padding: 10px 20px;
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
             font-size: 1.1em;
             transition: background 0.2s;
+            margin-bottom: 10px;
+        }
+        #copy-billboard-btn:hover {
+            background-color: #ddd;
+        }
+
+        /* YES/NO buttons for continuation */
+        .milestone-buttons button {
+            padding: 10px 20px;
+            margin: 0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            transition: background 0.2s;
         }
         #milestone-yes {
-            background-color: #00C853; /* Green */
+            background-color: #00C853; 
             color: white;
         }
         #milestone-no {
-            background-color: #D50000; /* Red */
+            background-color: #D50000; 
             color: white;
         }
-
-        /* Admin/Edit Input Styling */
-        #milestone-text-input {
-            width: 90%;
-            padding: 8px;
-            margin: 15px auto 5px auto; /* NEW POSITIONING */
-            border: 1px solid #555;
-            background-color: #333;
-            color: #fff;
-            border-radius: 5px;
-            text-align: center;
-            font-size: 0.9em;
+        
+        /* Footer and other controls */
+        #last-updated { 
+            color: #999; 
+            font-size: 0.9em; 
+            margin-top: 30px; 
         }
-        /* Hide the input box by default */
-        .admin-hidden {
-            display: none !important;
+        
+        .buy-now-btn {
+            /* styles unchanged */
         }
-
-        /* Admin Toggle Styling */
-        #admin-toggle {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            font-size: 0.8em;
-            color: #D50000;
-            cursor: pointer;
-            padding: 2px 5px;
-            border: 1px solid #D50000;
-            border-radius: 3px;
-            display: none; 
-            z-index: 11; /* Ensure it's above the modal */
-        }
-
+        
         .game-reset-btn {
             background: none;
             color: #ffcc00; 
@@ -269,17 +284,6 @@
             cursor: pointer;
             margin-top: 10px;
             font-size: 0.8em;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .data-tables-container {
-                flex-direction: column;
-                gap: 20px;
-            }
-            .data-table {
-                width: 100%;
-            }
         }
     </style>
 </head>
@@ -324,7 +328,6 @@
                     <td id="volume-24h-display">...</td>
                 </tr>
                 <tr>
-                    <tr>
                     <td>Total Volume</td>
                     <td id="volume-total-display">...</td>
                 </tr>
@@ -358,21 +361,23 @@
     <button class="refresh-btn" onclick="fetchLatestPrice()">Refresh Now</button>
 
     <div class="game-container">
-        <span id="admin-toggle">Admin Mode: OFF</span>
-        
         <p>Your Pops: <span id="game-pop-count">0</span></p>
         <button id="mini-bubble-btn">POP IT</button>
         
-        <div id="milestone-message" style="display: none;">
-            <p id="milestone-display-text">Milestone Message Here</p>
+        <div id="milestone-message">
+            <p>*** MILESTONE BILLBOARD ACTIVATED! ***</p>
+            
+            <div id="billboard-message">
+                ✨ Reward: Thanks for popping 100 bubbles! The next important message is here.
+            </div>
+            <button id="copy-billboard-btn">Click to Copy Message</button>
+            <span id="copy-status" style="color: #00C853;"></span>
+            
             <div class="milestone-buttons">
-                <button id="milestone-yes">YES (Continue)</button>
+                <button id="milestone-yes">YES (Continue Popping)</button>
                 <button id="milestone-no">NO (Stop/Reset)</button>
             </div>
         </div>
-        <input type="text" id="milestone-text-input" class="admin-hidden" 
-               placeholder="Edit mini-billboard message here (Admin Only)" maxlength="100"/>
-
         <button class="game-reset-btn" id="game-reset-btn">Reset Pop Counter</button>
     </div>
     <script src="script.js"></script>
