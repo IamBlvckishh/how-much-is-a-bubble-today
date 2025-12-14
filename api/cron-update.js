@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL FIXES: Negative Popped Value Guard & Robust Burn Check
+// api/cron-update.js - FINAL FIXES: Corrected Initial Supply & Expanded Burn Search Range
 
 // ----------------------------------------------------
 // Caching Variables
@@ -15,7 +15,7 @@ const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
 
 const COLLECTION_SLUG = "bubbles-by-xcopy"; 
 const CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8"; 
-const INITIAL_SUPPLY = 1000; // The fixed maximum supply of the collection
+const INITIAL_SUPPLY = 2394770; // CORRECTED: The actual maximum token ID or concept supply value
 
 const ETH_NODE_URL = `https://shape-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`; 
 
@@ -37,16 +37,18 @@ const TOTAL_SUPPLY_PAYLOAD = {
 
 
 // ----------------------------------------------------
-// NEW FUNCTION: Fetch Last Burn Event (Pop Time)
+// FUNCTION: Fetch Last Burn Event (Pop Time) - EXPANDED SEARCH
 // ----------------------------------------------------
 async function fetchLastBurnEvent(nodeUrl) {
     if (!ALCHEMY_API_KEY) return 'N/A';
     
-    // We will search a generous window of the last 100,000 blocks
-    const SEARCH_BLOCKS = 100000;
+    // Increased block search range: 500,000 blocks (~2 months) 
+    // This dramatically increases the chance of finding the latest burn.
+    const SEARCH_BLOCKS = 500000; 
 
     try {
         const currentBlock = await fetchBlockNumber(nodeUrl);
+        // Start searching from a point 500,000 blocks ago
         const fromBlock = "0x" + (currentBlock - SEARCH_BLOCKS).toString(16);
         const toBlock = "latest";
 
@@ -221,7 +223,7 @@ export default async function handler(req, res) {
         totalSupply = uniqueOwners;
     }
     
-    // --- CALCULATE POPPED BUBBLES (WITH NEGATIVE GUARD) ---
+    // --- CALCULATE POPPED BUBBLES (WITH CORRECTED INITIAL SUPPLY AND NEGATIVE GUARD) ---
     const poppedBubbles = Math.max(0, INITIAL_SUPPLY - totalSupply);
 
     // 5. CALCULATE MARKET CAP
