@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL ATTEMPT: Chunked Alchemy Log Search for Custom 'Pop' Event
+// api/cron-update.js - STRIPPED: Removed all 'Last Pop' logic
 
 // ----------------------------------------------------
 // Caching Variables
@@ -14,16 +14,13 @@ const OPENSEA_API_KEY = process.env.OPENSEA_API_KEY;
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY; 
 
 const COLLECTION_SLUG = "bubbles-by-xcopy"; 
-const BUBBLES_CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8"; 
+const BUBBLES_CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8"; // Target Contract
 const INITIAL_SUPPLY = 2394770; // Corrected supply value
 
 const ETH_NODE_URL = `https://shape-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`; 
 
 const OPEN_SEA_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`;
 const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; 
-
-// --- CUSTOM POP EVENT SIGNATURE (Topic 0 for Pop(uint256, address)) ---
-const POP_EVENT_TOPIC = "0x1809090623f9976378e9b049d115e87a276188e7d8d217983050942d992982d6"; 
 
 // JSON-RPC Payload (for total supply, remains the same)
 const TOTAL_SUPPLY_PAYLOAD = {
@@ -35,120 +32,8 @@ const TOTAL_SUPPLY_PAYLOAD = {
 
 
 // ----------------------------------------------------
-// FUNCTION: Helper to get the current block number
-// ----------------------------------------------------
-async function fetchBlockNumber(nodeUrl) {
-    const response = await fetch(nodeUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "eth_blockNumber", params: [] })
-    });
-    const json = await response.json();
-    return parseInt(json.result || '0x0', 16);
-}
-
-// ----------------------------------------------------
-// FUNCTION: Helper to get the block timestamp from its hash
-// ----------------------------------------------------
-async function fetchBlockTimestamp(nodeUrl, blockHash) {
-    const response = await fetch(nodeUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "eth_getBlockByHash", params: [blockHash, false] })
-    });
-    const json = await response.json();
-    if (json.result && json.result.timestamp) {
-        const timestampSeconds = parseInt(json.result.timestamp, 16);
-        return new Date(timestampSeconds * 1000).toISOString();
-    }
-    return 'N/A';
-}
-
-// ----------------------------------------------------
-// FUNCTION: Chunked Log Search (Targeting Pop Event)
-// ----------------------------------------------------
-async function fetchLastPopEvent(nodeUrl) {
-    if (!ALCHEMY_API_KEY) return 'N/A';
-    
-    // Limits: Max total search range and the size of each chunk
-    const MAX_TOTAL_SEARCH_BLOCKS = 500000; // Search up to ~2 months back
-    const CHUNK_SIZE = 50000; // Safe chunk size for API limits
-
-    try {
-        const currentBlock = await fetchBlockNumber(nodeUrl);
-        let latestLog = null;
-
-        // Loop backwards in chunks
-        for (let i = 0; i < MAX_TOTAL_SEARCH_BLOCKS; i += CHUNK_SIZE) {
-            const endBlock = currentBlock - i;
-            const startBlock = Math.max(0, currentBlock - (i + CHUNK_SIZE)); 
-            
-            // Format block numbers to hex
-            const fromBlockHex = "0x" + startBlock.toString(16);
-            const toBlockHex = "0x" + endBlock.toString(16);
-
-            const POP_LOG_PAYLOAD = {
-                jsonrpc: "2.0",
-                id: 2,
-                method: "eth_getLogs",
-                params: [{
-                    address: BUBBLES_CONTRACT_ADDRESS,
-                    fromBlock: fromBlockHex, 
-                    toBlock: toBlockHex,
-                    topics: [
-                        POP_EVENT_TOPIC 
-                    ]
-                }]
-            };
-
-            const response = await fetch(nodeUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(POP_LOG_PAYLOAD)
-            });
-
-            if (!response.ok) {
-                // If a chunk fails due to a status error, stop and report
-                return `N/A (Alchemy Status Error on block ${startBlock} to ${endBlock})`;
-            }
-
-            const json = await response.json();
-            
-            if (json.error) {
-                // If a chunk fails due to an RPC error, stop and report
-                return `N/A (Alchemy RPC Error: ${json.error.message})`;
-            }
-
-            if (json.result && json.result.length > 0) {
-                // If logs are found, take the most recent one in this chunk
-                const foundLog = json.result.reduce((prev, current) => 
-                    (parseInt(prev.blockNumber, 16) > parseInt(current.blockNumber, 16)) ? prev : current);
-
-                if (!latestLog || parseInt(foundLog.blockNumber, 16) > parseInt(latestLog.blockNumber, 16)) {
-                    latestLog = foundLog;
-                }
-                
-                // Since we are searching backwards, the first log found in the FIRST successful chunk 
-                // is likely the absolute latest. We can stop here for efficiency.
-                break;
-            }
-        } // End of loop
-
-        if (latestLog) {
-            // If a log was found, fetch its timestamp
-            const blockTimestamp = await fetchBlockTimestamp(nodeUrl, latestLog.blockHash);
-            return blockTimestamp; 
-        }
-
-        return 'N/A (No Pop Event Found in Range)';
-
-    } catch (error) {
-        console.error("Critical error in fetchLastPopEvent:", error.message);
-        return 'N/A (Critical Error)';
-    }
-}
-
 // Contract Supply Fetch (remains the same)
+// ----------------------------------------------------
 async function fetchContractSupply(nodeUrl) {
     if (!ALCHEMY_API_KEY) return 0;
     
@@ -200,14 +85,14 @@ export default async function handler(req, res) {
     }
 
     // 2. INITIATE CONCURRENT API CALLS 
-    const [openSeaStatsResponse, coinGeckoResponse, contractSupply, lastPopTime] = await Promise.all([
+    const [openSeaStatsResponse, coinGeckoResponse, contractSupply] = await Promise.all([
         fetch(OPEN_SEA_STATS_URL, {
             method: 'GET',
             headers: { 'accept': 'application/json', 'X-API-Key': OPENSEA_API_KEY }
         }),
         fetch(ETH_USD_CONVERSION_URL),
-        fetchContractSupply(ETH_NODE_URL),
-        fetchLastPopEvent(ETH_NODE_URL) // FIXED: Chunked log search
+        fetchContractSupply(ETH_NODE_URL)
+        // Removed fetchLastPopEvent()
     ]);
 
     // 3. PROCESS OPENSEA STATS RESPONSE 
@@ -232,7 +117,7 @@ export default async function handler(req, res) {
         if (interval24h) {
             const previousFloor24h = parseFloat(interval24h.floor_price) || 0;
             volume24h = parseFloat(interval24h.volume) || 0; 
-            priceChange24h = safePercentageChange(floorPriceValue, previousFloor24h);
+            priceChange24h = safePercentageChange(floorPriceValue, previousFloorFloor24h);
         }
     }
     
@@ -291,7 +176,7 @@ export default async function handler(req, res) {
       lastUpdated: new Date().toISOString(),
       supply: totalSupply,
       popped: poppedBubbles,
-      last_pop_time: lastPopTime 
+      // last_pop_time is now excluded
     };
 
     // 8. UPDATE CACHE
