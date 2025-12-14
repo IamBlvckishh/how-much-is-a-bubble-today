@@ -1,4 +1,4 @@
-// public/script.js - STABLE, FAST VERSION: Dual Volume Display
+// public/script.js - FINAL VERSION: Dual Volume and Fixed Calculations
 
 /**
  * Helper to format large numbers (Market Cap, Volume) as currency.
@@ -56,8 +56,8 @@ async function fetchLatestPrice() {
     // Stat Displays
     const usdPriceDisplay = document.getElementById('usd-price');
     const ethPriceDisplay = document.getElementById('eth-price');
-    const volume24hDisplay = document.getElementById('volume-24h-display');
-    const volumeTotalDisplay = document.getElementById('volume-total-display');
+    const volume24hDisplay = document.getElementById('volume-24h-display'); // New ID for 24H Volume
+    const volumeTotalDisplay = document.getElementById('volume-total-display'); // New ID for Total Volume
     const marketCapDisplay = document.getElementById('market-cap-display');
     const supplyDisplay = document.getElementById('total-supply-display'); 
     const holdersDisplay = document.getElementById('unique-holders-display'); 
@@ -95,7 +95,7 @@ async function fetchLatestPrice() {
             usdPriceDisplay.textContent = formattedUsdPrice;
             ethPriceDisplay.textContent = `(${data.price} ${data.currency})`;
 
-            // 3. Display: 24h & 7d Change (Will likely show 0.00% but will load quickly)
+            // 3. Display: 24h & 7d Change (NOW RELIABLE)
             updatePriceChangeDisplay('price-change-24h', data.price_change_24h, '24h');
             updatePriceChangeDisplay('price-change-7d', data.price_change_7d, '7d'); 
 
