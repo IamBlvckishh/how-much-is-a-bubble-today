@@ -39,14 +39,17 @@
             margin-bottom: 20px;
         }
 
-        /* Price Formatting */
+        /* Price Formatting (MAXIMIZE USD PRICE) */
         #usd-price-container {
             font-weight: bold;
             color: #000; 
             margin-bottom: 5px;
+            /* Allow the container to use more vertical space */
+            padding-top: 10px;
         }
         #usd-price { 
-            font-size: 3.5em; 
+            /* Significantly larger font to fill the space */
+            font-size: 4.5em; 
             line-height: 1.1;
         }
         #usd-currency {
@@ -54,15 +57,17 @@
             display: block;
         }
 
-        /* 24H/7D CHANGE STYLING */
+        /* 24H CHANGE STYLING (SMALLER) */
         .change-container {
+            /* Center the single 24h metric */
             display: flex;
-            gap: 15px;
-            margin-top: 10px;
-            margin-bottom: 10px;
+            gap: 0;
+            margin-top: 5px;
+            margin-bottom: 5px;
         }
-        .price-change-metric {
-            font-size: 1.0em;
+        #price-change-24h {
+            /* Smaller font size for 24h change */
+            font-size: 0.9em; 
             font-weight: bold;
             color: #000;
         }
@@ -73,7 +78,8 @@
         #eth-price-container {
             color: #333; 
             font-weight: bold;
-            font-size: 1.5em; 
+            font-size: 1.2em; /* Slightly smaller ETH price */
+            padding-bottom: 10px;
         }
         
         /* Stats Styling: THE TRAY DESIGN */
@@ -107,7 +113,29 @@
             margin-top: 20px;
         }
 
-        /* Button Styling */
+        /* Buy Now Button Styling */
+        .buy-now-btn {
+            padding: 15px 30px;
+            /* High visibility color */
+            background: #2081e2; 
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(32, 129, 226, 0.4);
+            transition: background 0.3s, transform 0.1s;
+        }
+        .buy-now-btn:hover {
+            background: #176cb6;
+            transform: translateY(-2px);
+        }
+
+        /* Refresh Button Styling */
         .refresh-btn {
             padding: 10px 20px;
             background: #000;
@@ -117,6 +145,7 @@
             cursor: pointer;
             font-weight: bold;
             transition: background 0.3s;
+            margin-top: 15px;
         }
         .refresh-btn:hover {
             background: #222;
@@ -134,14 +163,17 @@
         
         <div class="change-container">
             <div id="price-change-24h" class="price-change-metric">Loading 24h...</div>
-            <div id="price-change-7d" class="price-change-metric">Loading 7d...</div>
-        </div>
+            </div>
 
         <div id="eth-price-container">
             <span id="eth-price">Loading...</span>
         </div>
     </div>
     
+    <a href="https://opensea.io/collection/bubbles-by-xcopy" target="_blank">
+        <button class="buy-now-btn">Buy Now</button>
+    </a>
+
     <div class="stats-container">
         <p id="volume-24h-display" class="stat-line">24H Volume: Loading...</p> 
         <p id="volume-total-display" class="stat-line">Total Volume: Loading...</p>
