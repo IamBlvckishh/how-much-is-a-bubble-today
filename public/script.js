@@ -1,4 +1,4 @@
-// public/script.js - MINI-BILLBOARD LOGIC WITH ADMIN EDITING
+// public/script.js - MINI-BILLBOARD ACTIVATED ON MILESTONE
 
 // =========================================================
 // STATS HELPER FUNCTIONS (Unchanged)
@@ -47,7 +47,7 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
     
     if (changeValue > 0) { 
         colorClass = 'change-up';
-    } else if (changeValue < -0.1) { 
+    } else if (changeValue < 0) { 
         colorClass = 'change-down';
     }
     
@@ -63,60 +63,22 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
 // =========================================================
 
 const POP_STORAGE_KEY = 'bubblePopCount';
-const CUSTOM_MESSAGE_KEY = 'milestoneCustomMessage';
 const MILESTONE = 100;
 const INITIAL_SIZE = 150;
 const MINIMUM_SIZE = 70;
 const SIZE_DECREMENT = 0.8;
-const ADMIN_CODE = 'admin';
 
 let userPops = 0;
-let isAdminMode = false;
 
 const popButton = document.getElementById('mini-bubble-btn');
 const popCountDisplay = document.getElementById('game-pop-count');
 const milestoneMessageDiv = document.getElementById('milestone-message');
-const milestoneDisplayText = document.getElementById('milestone-display-text'); // NEW ID
 const resetButton = document.getElementById('game-reset-btn');
-const adminToggle = document.getElementById('admin-toggle');
-const customInput = document.getElementById('milestone-text-input');
-const defaultMessage = "Thank you for popping 100 times! Do you want to keep poppin'?";
 
-
-/**
- * Saves the custom message to Local Storage.
- */
-function saveCustomMessage() {
-    if (customInput) {
-        const message = customInput.value.trim();
-        // Fallback to default message if input is cleared
-        const messageToSave = message || defaultMessage;
-        localStorage.setItem(CUSTOM_MESSAGE_KEY, messageToSave);
-        console.log(`Milestone message saved: "${messageToSave}"`);
-    }
-}
-
-/**
- * Toggles the admin editing mode for the custom input.
- */
-function toggleAdminMode() {
-    isAdminMode = !isAdminMode;
-
-    if (isAdminMode) {
-        adminToggle.textContent = 'Admin Mode: ON';
-        adminToggle.style.borderColor = '#00C853';
-        adminToggle.style.color = '#00C853';
-        customInput.classList.remove('admin-hidden'); // SHOWS INPUT
-        alert("Admin Edit Mode Enabled. The custom message input is now visible.");
-    } else {
-        adminToggle.textContent = 'Admin Mode: OFF';
-        adminToggle.style.borderColor = '#D50000';
-        adminToggle.style.color = '#D50000';
-        customInput.classList.add('admin-hidden'); // HIDES INPUT
-        // Save on closing the admin mode, just in case
-        saveCustomMessage();
-    }
-}
+// NEW/REASSIGNED ELEMENTS for the popup
+const billboardButton = document.getElementById('copy-billboard-btn');
+const billboardMessage = document.getElementById('billboard-message');
+const copyStatus = document.getElementById('copy-status');
 
 
 function updateButtonSize() {
@@ -165,34 +127,10 @@ function handleFullReset() {
 
 
 function initializeGame() {
-    // 1. Load Pop Count
     const storedPops = localStorage.getItem(POP_STORAGE_KEY);
     userPops = storedPops ? parseInt(storedPops) : 0;
     popCountDisplay.textContent = formatCount(userPops);
     updateButtonSize();
-    
-    // 2. Load Custom Message (for initial input placeholder)
-    const storedMessage = localStorage.getItem(CUSTOM_MESSAGE_KEY);
-    if (customInput) {
-        // Set the input value to the stored message, or the default
-        customInput.value = storedMessage || defaultMessage;
-    }
-    
-    // 3. Add Admin Activation Listener (listens for the 'admin' code)
-    let buffer = '';
-    document.addEventListener('keydown', (e) => {
-        buffer += e.key;
-        if (buffer.length > ADMIN_CODE.length) {
-            buffer = buffer.slice(buffer.length - ADMIN_CODE.length);
-        }
-        if (buffer === ADMIN_CODE) {
-            if (adminToggle && adminToggle.style.display === 'none') {
-                adminToggle.style.display = 'block';
-                alert("Admin Toggle activated! Click the box to enable edit mode.");
-            }
-            buffer = '';
-        }
-    });
 }
 
 
@@ -217,20 +155,42 @@ function handlePop() {
 
 
 /**
- * Displays the mini-billboard pop-up using the stored custom message.
+ * Displays the Mini-Billboard pop-up on milestone.
  */
 function showMilestoneMessage() {
-    // Get the current message from Local Storage (or the input field if it was just changed)
-    const savedMessage = localStorage.getItem(CUSTOM_MESSAGE_KEY);
-    const displayedMessage = savedMessage || customInput?.value || defaultMessage;
-
-    // Set the text inside the pop-up
-    milestoneDisplayText.textContent = displayedMessage;
-
-    // Show the pop-up
     milestoneMessageDiv.style.display = 'flex';
+
+    // Ensure click handlers are attached to the buttons within the popup
+    document.getElementById('milestone-yes').onclick = () => resetGame(true);
+    document.getElementById('milestone-no').onclick = () => resetGame(false);
 }
 
+
+// =========================================================
+// BILLBOARD COPY LOGIC
+// =========================================================
+
+/**
+ * Copies the billboard message to the user's clipboard.
+ */
+async function copyBillboardMessage() {
+    if (!billboardMessage || !copyStatus) return;
+
+    const messageText = billboardMessage.textContent.trim();
+
+    try {
+        await navigator.clipboard.writeText(messageText);
+        copyStatus.textContent = 'Copied!';
+    } catch (err) {
+        console.error('Could not copy text: ', err);
+        copyStatus.textContent = 'Copy failed.';
+    }
+
+    // Clear the status message after a short delay
+    setTimeout(() => {
+        copyStatus.textContent = '';
+    }, 2000);
+}
 
 // --- ATTACH HANDLERS ---
 if (popButton) {
@@ -239,17 +199,9 @@ if (popButton) {
 if (resetButton) {
     resetButton.addEventListener('click', handleFullReset);
 }
-if (adminToggle) {
-    adminToggle.addEventListener('click', toggleAdminMode);
-}
-
-// Save message on keyup when admin mode is active
-if (customInput) {
-    customInput.addEventListener('keyup', () => {
-        if (isAdminMode) {
-            saveCustomMessage();
-        }
-    });
+// Attach the copy handler to the billboard button inside the milestone div
+if (billboardButton) {
+    billboardButton.addEventListener('click', copyBillboardMessage);
 }
 
 // Initialize everything on load
