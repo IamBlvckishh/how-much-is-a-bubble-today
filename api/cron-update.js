@@ -1,7 +1,7 @@
-// api/cron-update.js - FINAL STABLE CORE: Caching and Correct 24H Volume
+// api/cron-update.js - FINAL DEFINITIVE CORE: All Metrics Fixed
 
 // ----------------------------------------------------
-// Caching Variables 
+// Caching Variables
 // ----------------------------------------------------
 let dataCache = null;
 let lastFetchTime = 0;
@@ -51,11 +51,11 @@ async function fetchContractSupply(nodeUrl) {
 }
 
 /**
- * Calculates the percentage change safely.
+ * Calculates the percentage change safely based on current and previous floor prices.
  */
-function safePercentageChange(change, previousValue) {
-    if (previousValue > 0) {
-        return (change / previousValue) * 100;
+function safePercentageChange(currentPrice, previousPrice) {
+    if (previousPrice > 0) {
+        return ((currentPrice - previousPrice) / previousPrice) * 100;
     }
     return 0;
 }
@@ -99,33 +99,35 @@ export default async function handler(req, res) {
     const data = await openSeaResponse.json();
     const stats = data.total;
     
-    // Extract Metrics
+    // Extract Core Metrics
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
+    const allTimeVolumeValue = parseFloat(stats.volume) || 0; // <<< ALL-TIME VOLUME
     const uniqueOwners = parseInt(stats.num_owners) || 0; 
     const currency = stats.floor_price_symbol || 'ETH';
     
-    // --- 24H & 7D PRICE CHANGE AND VOLUME LOGIC ---
+    // --- 24H & 7D CHANGE AND VOLUME LOGIC ---
     let priceChange24h = 0;
     let priceChange7d = 0; 
-    let totalVolumeValue = 0; // <<< Initialized to 0, will be filled with 24H data
+    let volume24h = 0; // <<< 24H VOLUME
 
     if (data.intervals && data.intervals.length > 0) {
+        // 24H Metrics
         const interval24h = data.intervals.find(i => i.interval === 'one_day') || data.intervals[0];
         if (interval24h) {
-            const floorChange24h = parseFloat(interval24h.floor_price_change) || 0;
             const previousFloor24h = parseFloat(interval24h.floor_price) || 0;
+            volume24h = parseFloat(interval24h.volume) || 0; // 24H VOLUME
             
-            // CORRECT 24H VOLUME EXTRACTION
-            totalVolumeValue = parseFloat(interval24h.volume) || 0; 
-
-            priceChange24h = safePercentageChange(floorChange24h, previousFloor24h);
+            // MANUAL CHANGE CALCULATION: Use current price vs. previous day's price
+            priceChange24h = safePercentageChange(floorPriceValue, previousFloor24h);
         }
 
+        // 7D Metrics
         const interval7d = data.intervals.find(i => i.interval === 'seven_day'); 
         if (interval7d) {
-            const floorChange7d = parseFloat(interval7d.floor_price_change) || 0;
             const previousFloor7d = parseFloat(interval7d.floor_price) || 0;
-            priceChange7d = safePercentageChange(floorChange7d, previousFloor7d);
+            
+            // MANUAL CHANGE CALCULATION: Use current price vs. previous week's price
+            priceChange7d = safePercentageChange(floorPriceValue, previousFloor7d);
         }
     }
     
@@ -142,7 +144,8 @@ export default async function handler(req, res) {
     let ethUsdRate = null;
     let floorPriceUSD = 'N/A';
     let marketCapUSD = 'N/A'; 
-    let totalVolumeUSD = 'N/A';
+    let volume24hUSD = 'N/A';
+    let allTimeVolumeUSD = 'N/A';
 
     if (coinGeckoResponse.ok) {
         const cgData = await coinGeckoResponse.json();
@@ -156,8 +159,11 @@ export default async function handler(req, res) {
         if (marketCapETH > 0) {
             marketCapUSD = (marketCapETH * ethUsdRate).toFixed(0); 
         }
-        if (totalVolumeValue > 0) {
-            totalVolumeUSD = (totalVolumeValue * ethUsdRate).toFixed(0); 
+        if (volume24h > 0) {
+            volume24hUSD = (volume24h * ethUsdRate).toFixed(0); 
+        }
+        if (allTimeVolumeValue > 0) {
+            allTimeVolumeUSD = (allTimeVolumeValue * ethUsdRate).toFixed(0); 
         }
     }
     
@@ -168,10 +174,12 @@ export default async function handler(req, res) {
       usd: floorPriceUSD, 
       market_cap_eth: marketCapETH.toFixed(2), 
       market_cap_usd: marketCapUSD,           
-      volume: totalVolumeValue.toFixed(2), // <<< THIS IS NOW THE CORRECT 24H VOLUME
-      volume_usd: totalVolumeUSD,          
-      price_change_24h: priceChange24h.toFixed(2), 
-      price_change_7d: priceChange7d.toFixed(2), 
+      volume_24h: volume24h.toFixed(2), // <<< 24H VOLUME
+      volume_24h_usd: volume24hUSD,          
+      volume_total: allTimeVolumeValue.toFixed(2), // <<< ALL-TIME VOLUME
+      volume_total_usd: allTimeVolumeUSD,
+      price_change_24h: priceChange24h.toFixed(2), // <<< FIXED CALCULATION
+      price_change_7d: priceChange7d.toFixed(2),   // <<< FIXED CALCULATION
       holders: uniqueOwners, 
       lastUpdated: new Date().toISOString(),
       supply: totalSupply 
