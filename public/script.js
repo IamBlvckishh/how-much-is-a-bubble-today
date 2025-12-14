@@ -1,4 +1,4 @@
-// public/script.js - ADDED PULSE EFFECT & REFRESH ANIMATION
+// public/script.js - REMOVED UNRELIABLE DYNAMIC HEADER, ADDED CLICKER GAME
 
 /**
  * Helper to format large numbers (Market Cap, Volume) as currency.
@@ -27,7 +27,7 @@ const formatCount = (count) => {
  */
 const updatePriceChangeDisplay = (elementId, changeString, label) => {
     const changeDisplay = document.getElementById(elementId);
-    if (!changeDisplay) return; 
+    if (!changeDisplay) return 0; // Return 0 if element not found
 
     const changeValue = parseFloat(changeString);
     
@@ -37,7 +37,7 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
     if (isNaN(changeValue) || changeValue === 0) {
         changeDisplay.textContent = `0.00% (${label})`;
         changeDisplay.classList.add('change-neutral');
-        return;
+        return 0; // Return 0 for neutral status
     }
     
     const sign = changeValue > 0 ? '+' : '';
@@ -52,9 +52,36 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
     changeDisplay.textContent = `${sign}${changeValue.toFixed(2)}% (${label})`;
     changeDisplay.classList.add(colorClass);
 
-    // Return the numeric change value for use in the Pulse Effect logic
+    // Return the numeric change value for use in the Pulse Effect
     return changeValue; 
 };
+
+// =========================================================
+// MINI-GAME LOGIC (New)
+// =========================================================
+
+let userPops = 0;
+const popButton = document.getElementById('mini-bubble-btn');
+const popCountDisplay = document.getElementById('game-pop-count');
+
+if (popButton) {
+    popButton.addEventListener('click', () => {
+        // 1. Increment Count
+        userPops++;
+        popCountDisplay.textContent = userPops;
+
+        // 2. Play Pop Animation (CSS handles the shrink/fade)
+        // Optionally, play a sound effect here for maximum fun!
+        
+        // 3. Optional: Reset button visual state after a tiny delay
+        setTimeout(() => {
+             // You can add a subtle visual effect or sound here if desired
+        }, 100);
+    });
+}
+// =========================================================
+// END MINI-GAME LOGIC
+// =========================================================
 
 
 async function fetchLatestPrice() {
@@ -72,6 +99,12 @@ async function fetchLatestPrice() {
     const holdersDisplay = document.getElementById('unique-holders-display'); 
     const updatedDisplay = document.getElementById('last-updated');
     const refreshButton = document.querySelector('.refresh-btn');
+    const dynamicTitle = document.getElementById('dynamic-title');
+
+    // Reset Title (Since dynamic message is gone, use static beauty title)
+    if (dynamicTitle) {
+        dynamicTitle.textContent = "how much is a bubble today?";
+    }
 
     // 1. START ANIMATION: Bubble Pop Refresh
     bubbleElement.style.transform = 'scale(0.9)'; // Shrink
@@ -79,7 +112,6 @@ async function fetchLatestPrice() {
     updatedDisplay.textContent = 'Refreshing data...';
 
     // 2. Set Loading State (briefly, while waiting for fetch)
-    // We keep existing values, but maybe slightly dim them for visual feedback
     bubbleElement.style.opacity = '0.5';
 
     try {
@@ -102,7 +134,7 @@ async function fetchLatestPrice() {
             usdPriceDisplay.textContent = formattedUsdPrice;
             ethPriceDisplay.textContent = `(${data.price} ${data.currency})`;
 
-            // 4. Display: 24h Change & Get Value for Pulse
+            // 4. Display: 24h Change & Get Value for Pulse (This will likely return 0.00%)
             const changeValue = updatePriceChangeDisplay('price-change-24h', data.price_change_24h, '24h');
             
             // 5. Apply Pulse Effect
@@ -114,7 +146,7 @@ async function fetchLatestPrice() {
             } else { // Neutral/Flat
                 bubbleElement.classList.add('pulse-neutral');
             }
-
+            
             // 6. Populate Table 1: Market Data
             const formattedMarketCap = formatCurrency(data.market_cap_usd);
             marketCapDisplay.textContent = 
@@ -143,10 +175,10 @@ async function fetchLatestPrice() {
         console.error("Fetch error:", error);
         usdPriceDisplay.textContent = 'ERROR';
         updatedDisplay.textContent = `Error fetching data: ${error.message}`;
-        bubbleElement.classList.add('pulse-down'); // Indicate error state
+        bubbleElement.classList.add('pulse-down'); 
     } finally {
         // 9. END ANIMATION: Restore and enable button
-        bubbleElement.style.transform = 'scale(1)'; // Restore size
+        bubbleElement.style.transform = 'scale(1)'; 
         bubbleElement.style.opacity = '1';
         refreshButton.disabled = false;
     }
