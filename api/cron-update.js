@@ -1,4 +1,4 @@
-// api/cron-update.js - STRIPPED: Removed all 'Last Pop' logic
+// api/cron-update.js - FINAL CLEANUP: Removed Last Pop Time Logic
 
 // ----------------------------------------------------
 // Caching Variables
@@ -14,25 +14,25 @@ const OPENSEA_API_KEY = process.env.OPENSEA_API_KEY;
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY; 
 
 const COLLECTION_SLUG = "bubbles-by-xcopy"; 
-const BUBBLES_CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8"; // Target Contract
-const INITIAL_SUPPLY = 2394770; // Corrected supply value
+const CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8"; 
+const INITIAL_SUPPLY = 2394770; // The actual maximum token ID or concept supply value
 
 const ETH_NODE_URL = `https://shape-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`; 
 
 const OPEN_SEA_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`;
 const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; 
 
-// JSON-RPC Payload (for total supply, remains the same)
+// JSON-RPC Payload (for total supply)
 const TOTAL_SUPPLY_PAYLOAD = {
     jsonrpc: "2.0",
     id: 1,
     method: "eth_call",
-    params: [{ to: BUBBLES_CONTRACT_ADDRESS, data: "0x18160ddd" }, "latest"]
+    params: [{ to: CONTRACT_ADDRESS, data: "0x18160ddd" }, "latest"]
 };
 
 
 // ----------------------------------------------------
-// Contract Supply Fetch (remains the same)
+// Contract Supply Fetch
 // ----------------------------------------------------
 async function fetchContractSupply(nodeUrl) {
     if (!ALCHEMY_API_KEY) return 0;
@@ -54,7 +54,7 @@ async function fetchContractSupply(nodeUrl) {
     }
 }
 
-// Helper for safe percentage change (remains the same)
+// Helper for safe percentage change
 function safePercentageChange(currentPrice, previousPrice) {
     if (previousPrice > 0) {
         return ((currentPrice - previousPrice) / previousPrice) * 100;
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
   // If cache expired or empty, proceed with fetching data
   try {
     if (!OPENSEA_API_KEY || !ALCHEMY_API_KEY) {
-        throw new Error("API Key(s) are missing or blank (requires OpenSea and Alchemy keys).");
+        throw new Error("API Key(s) are missing or blank.");
     }
 
     // 2. INITIATE CONCURRENT API CALLS 
@@ -92,7 +92,7 @@ export default async function handler(req, res) {
         }),
         fetch(ETH_USD_CONVERSION_URL),
         fetchContractSupply(ETH_NODE_URL)
-        // Removed fetchLastPopEvent()
+        // Removed fetchLastBurnEvent() call
     ]);
 
     // 3. PROCESS OPENSEA STATS RESPONSE 
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
         if (interval24h) {
             const previousFloor24h = parseFloat(interval24h.floor_price) || 0;
             volume24h = parseFloat(interval24h.volume) || 0; 
-            priceChange24h = safePercentageChange(floorPriceValue, previousFloorFloor24h);
+            priceChange24h = safePercentageChange(floorPriceValue, previousFloor24h);
         }
     }
     
@@ -176,7 +176,7 @@ export default async function handler(req, res) {
       lastUpdated: new Date().toISOString(),
       supply: totalSupply,
       popped: poppedBubbles,
-      // last_pop_time is now excluded
+      // last_pop_time is deliberately excluded
     };
 
     // 8. UPDATE CACHE
