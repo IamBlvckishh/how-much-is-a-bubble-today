@@ -1,7 +1,7 @@
-// public/script.js - FINAL GAME LOGIC WITH RESET AND CUSTOM MESSAGE BOX
+// public/script.js - ADMIN MILESTONE EDITING LOGIC (Simplified Visibility)
 
 // =========================================================
-// STATS HELPER FUNCTIONS (No Functional Change)
+// STATS HELPER FUNCTIONS (Unchanged)
 // =========================================================
 
 const formatCurrency = (numberString) => {
@@ -27,7 +27,6 @@ const formatCount = (count) => {
 const updatePriceChangeDisplay = (elementId, changeString, label) => {
     const changeDisplay = document.getElementById(elementId);
     if (!changeDisplay) return 0;
-
     let changeValue;
     try {
         changeValue = parseFloat(changeString);
@@ -64,25 +63,58 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
 // =========================================================
 
 const POP_STORAGE_KEY = 'bubblePopCount';
+const CUSTOM_MESSAGE_KEY = 'milestoneCustomMessage';
 const MILESTONE = 100;
-const INITIAL_SIZE = 150; // UPDATED to 150px
+const INITIAL_SIZE = 150;
 const MINIMUM_SIZE = 70;
-const SIZE_DECREMENT = 0.8; // Increased decrement slightly for the bigger size
+const SIZE_DECREMENT = 0.8;
+const ADMIN_CODE = 'admin';
 
 let userPops = 0;
+let isAdminMode = false;
+
 const popButton = document.getElementById('mini-bubble-btn');
 const popCountDisplay = document.getElementById('game-pop-count');
-const milestoneMessage = document.getElementById('milestone-message');
+const milestoneMessageDiv = document.getElementById('milestone-message');
 const resetButton = document.getElementById('game-reset-btn');
+const adminToggle = document.getElementById('admin-toggle');
+const customInput = document.getElementById('milestone-text-input');
 
 
 /**
- * Sets the button size based on pops, clamping at a minimum of MINIMUM_SIZE.
+ * Saves the custom message to Local Storage.
  */
+function saveCustomMessage() {
+    if (customInput) {
+        const message = customInput.value.trim();
+        localStorage.setItem(CUSTOM_MESSAGE_KEY, message);
+    }
+}
+
+/**
+ * Toggles the admin editing mode for the custom input.
+ */
+function toggleAdminMode() {
+    isAdminMode = !isAdminMode;
+
+    if (isAdminMode) {
+        adminToggle.textContent = 'Admin Mode: ON';
+        adminToggle.style.borderColor = '#00C853';
+        adminToggle.style.color = '#00C853';
+        customInput.classList.remove('admin-hidden'); // SHOWS INPUT
+        alert("Admin Edit Mode Enabled. The custom message input is now visible.");
+    } else {
+        adminToggle.textContent = 'Admin Mode: OFF';
+        adminToggle.style.borderColor = '#D50000';
+        adminToggle.style.color = '#D50000';
+        customInput.classList.add('admin-hidden'); // HIDES INPUT
+    }
+}
+
+
 function updateButtonSize() {
     if (!popButton) return;
     
-    // Calculate new size based on pops relative to the current milestone loop
     const newSize = Math.max(MINIMUM_SIZE, INITIAL_SIZE - (userPops % MILESTONE) * SIZE_DECREMENT);
     
     popButton.style.width = `${newSize}px`;
@@ -91,24 +123,23 @@ function updateButtonSize() {
 }
 
 
-/**
- * Resets the game or prepares for the next round after a milestone choice.
- * @param {boolean} keepPopping - If true, keeps score and resets size; if false, resets score to 0.
- */
 function resetGame(keepPopping) {
+    // If admin mode is on and they hit YES/NO, save the latest custom message from the input
+    if (isAdminMode) {
+         saveCustomMessage();
+    }
+    
     if (keepPopping) {
-        // YES: Keep total score, reset size for next round
-        updateButtonSize(); // This call uses the remaining pops, which effectively resets the size
-        milestoneMessage.style.display = 'none';
+        updateButtonSize();
+        milestoneMessageDiv.style.display = 'none';
         popButton.disabled = false;
         
     } else {
-        // NO: Reset everything (score and size)
         userPops = 0;
         localStorage.setItem(POP_STORAGE_KEY, userPops);
         popCountDisplay.textContent = formatCount(userPops);
         
-        milestoneMessage.style.display = 'none';
+        milestoneMessageDiv.style.display = 'none';
         popButton.disabled = false;
         
         popButton.style.width = `${INITIAL_SIZE}px`;
@@ -116,16 +147,13 @@ function resetGame(keepPopping) {
     }
 }
 
-/**
- * Handles the manual full game reset via the dedicated button.
- */
 function handleFullReset() {
     if (confirm("Are you sure you want to reset your pop count to 0?")) {
         userPops = 0;
         localStorage.setItem(POP_STORAGE_KEY, userPops);
         popCountDisplay.textContent = formatCount(userPops);
         
-        milestoneMessage.style.display = 'none';
+        milestoneMessageDiv.style.display = 'none';
         popButton.disabled = false;
         popButton.style.width = `${INITIAL_SIZE}px`;
         popButton.style.height = `${INITIAL_SIZE}px`;
@@ -134,20 +162,39 @@ function handleFullReset() {
 }
 
 
-/**
- * Initializes the game state from local storage.
- */
 function initializeGame() {
+    // 1. Load Pop Count
     const storedPops = localStorage.getItem(POP_STORAGE_KEY);
     userPops = storedPops ? parseInt(storedPops) : 0;
     popCountDisplay.textContent = formatCount(userPops);
     updateButtonSize();
+    
+    // 2. Load Custom Message (for initial input placeholder)
+    const storedMessage = localStorage.getItem(CUSTOM_MESSAGE_KEY);
+    if (customInput && storedMessage) {
+        customInput.value = storedMessage;
+    } else if (customInput) {
+        customInput.value = `You hit a milestone! Do you want to keep popping?`;
+    }
+    
+    // 3. Add Admin Activation Listener (listens for the 'admin' code)
+    let buffer = '';
+    document.addEventListener('keydown', (e) => {
+        buffer += e.key;
+        if (buffer.length > ADMIN_CODE.length) {
+            buffer = buffer.slice(buffer.length - ADMIN_CODE.length);
+        }
+        if (buffer === ADMIN_CODE) {
+            if (adminToggle.style.display === 'none') {
+                adminToggle.style.display = 'block';
+                alert("Admin Toggle activated! Click the box to enable edit mode.");
+            }
+            buffer = '';
+        }
+    });
 }
 
 
-/**
- * Handles the click event, updating state and providing visual feedback.
- */
 function handlePop() {
     if (popButton.disabled) return;
 
@@ -155,14 +202,12 @@ function handlePop() {
     localStorage.setItem(POP_STORAGE_KEY, userPops);
     popCountDisplay.textContent = formatCount(userPops);
 
-    // Shrink and Energy Field Animation
     updateButtonSize();
     popButton.classList.add('energy-field');
     setTimeout(() => {
         popButton.classList.remove('energy-field');
     }, 200);
 
-    // Milestone Check
     if (userPops > 0 && userPops % MILESTONE === 0) {
         popButton.disabled = true; 
         showMilestoneMessage();
@@ -171,42 +216,56 @@ function handlePop() {
 
 
 /**
- * Displays the "Keep Poppin?" choice with a customizable message box.
+ * Displays the "Keep Poppin?" choice using the stored custom message.
+ * This is what all users see.
  */
 function showMilestoneMessage() {
-    // Retrieve custom message from input, or use default
-    const customMessage = document.getElementById('milestone-text-input')?.value || `You hit ${userPops} pops! Do you want to keep poppin'?`;
+    // 1. Get the current message from Local Storage (or the input field if it was just changed)
+    const savedMessage = localStorage.getItem(CUSTOM_MESSAGE_KEY);
+    // If a message is stored, use it. Otherwise, use the input value (which has a default).
+    const displayedMessage = savedMessage || customInput?.value || `You hit a milestone! Do you want to keep popping?`;
 
-    milestoneMessage.innerHTML = `
-        <input type="text" id="milestone-text-input" placeholder="Edit the milestone message here..." value="You hit ${userPops} pops! Do you want to keep poppin'?" style="width: 90%; margin: 5px auto;"/>
-        <p>${customMessage}</p>
+    // 2. Render the message and buttons
+    milestoneMessageDiv.innerHTML = `
+        <p>${displayedMessage}</p>
         <div class="milestone-buttons">
             <button id="milestone-yes">YES (Continue)</button>
             <button id="milestone-no">NO (Stop/Reset)</button>
         </div>
     `;
-    milestoneMessage.style.display = 'flex';
+    milestoneMessageDiv.style.display = 'flex';
 
+    // 3. Attach handlers
     document.getElementById('milestone-yes').onclick = () => resetGame(true);
     document.getElementById('milestone-no').onclick = () => resetGame(false);
 }
 
 
-// Attach Handlers
+// --- ATTACH HANDLERS ---
 if (popButton) {
     popButton.addEventListener('click', handlePop);
 }
 if (resetButton) {
     resetButton.addEventListener('click', handleFullReset);
 }
-initializeGame(); // Call initialize on page load
-// =========================================================
-// END ADDICTIVE MINI-GAME LOGIC
-// =========================================================
+if (adminToggle) {
+    adminToggle.addEventListener('click', toggleAdminMode);
+}
 
+// Save message on keyup when admin mode is active (and only when active)
+if (customInput) {
+    customInput.addEventListener('keyup', () => {
+        if (isAdminMode) {
+            saveCustomMessage();
+        }
+    });
+}
 
+// Initialize everything on load
+initializeGame();
+
+// ... (fetchLatestPrice function remains the same) ...
 async function fetchLatestPrice() {
-    // ... (Your fetch logic remains the same as the previous step)
     const bubbleElement = document.getElementById('price-bubble');
     const usdPriceDisplay = document.getElementById('usd-price');
     const ethPriceDisplay = document.getElementById('eth-price');
@@ -220,7 +279,6 @@ async function fetchLatestPrice() {
     const refreshButton = document.querySelector('.refresh-btn');
     const dynamicTitle = document.getElementById('dynamic-title');
 
-    // Display 'Loading' state visually
     if (dynamicTitle) dynamicTitle.textContent = "how much is a bubble today?";
     bubbleElement.style.transform = 'scale(0.9)'; 
     refreshButton.disabled = true;
@@ -239,24 +297,20 @@ async function fetchLatestPrice() {
         if (result.data) {
             const data = result.data;
             
-            // 1. USD Price (WORKING)
             const formattedUsdPrice = parseFloat(data.usd || 0).toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
             });
             usdPriceDisplay.textContent = formattedUsdPrice;
             
-            // 2. ETH Price 
             ethPriceDisplay.textContent = `(${data.price || 'N/A'} ${data.currency || 'ETH'})`;
 
-            // 3. 24H Change
             const changeValue = updatePriceChangeDisplay(
                 'price-change-24h', 
                 data.price_change_24h || 0,
                 '24h'
             );
             
-            // 4. Pulse Effect Logic
             bubbleElement.classList.remove('pulse-up', 'pulse-down', 'pulse-neutral');
             if (changeValue > 0.1) {
                 bubbleElement.classList.add('pulse-up');
@@ -266,7 +320,6 @@ async function fetchLatestPrice() {
                 bubbleElement.classList.add('pulse-neutral');
             }
             
-            // 5. Populate Table 1: Market Data
             const formattedMarketCap = formatCurrency(data.market_cap_usd || 0);
             marketCapDisplay.textContent = 
                 `${data.market_cap_eth || 'N/A'} ${data.currency || 'ETH'} (${formattedMarketCap})`;
@@ -279,12 +332,10 @@ async function fetchLatestPrice() {
             volumeTotalDisplay.textContent = 
                 `${data.volume_total || 'N/A'} ${data.currency || 'ETH'} (${formattedVolumeTotal})`;
             
-            // 6. Populate Table 2: Supply Data
             poppedDisplay.textContent = formatCount(data.popped); 
             supplyDisplay.textContent = formatCount(data.supply); 
             holdersDisplay.textContent = formatCount(data.holders); 
             
-            // 7. Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
             
         } else {
@@ -297,7 +348,6 @@ async function fetchLatestPrice() {
         updatedDisplay.textContent = `Critical Fetch Error: ${error.message}`;
         bubbleElement.classList.add('pulse-down'); 
     } finally {
-        // Restore elements
         bubbleElement.style.transform = 'scale(1)'; 
         bubbleElement.style.opacity = '1';
         refreshButton.disabled = false;
