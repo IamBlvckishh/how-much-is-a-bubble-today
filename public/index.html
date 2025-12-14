@@ -149,14 +149,14 @@
         
         /* Mini-Game Styling */
         .game-container {
-            margin-top: 30px;
+            margin-top: 20px; /* Reduced margin since controls are above */
             background-color: #1a1a1a;
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
             width: 90%;
             max-width: 400px;
-            margin-bottom: 30px; /* Space before footer */
+            margin-bottom: 30px; 
         }
 
         .game-container h3 {
@@ -183,11 +183,11 @@
             opacity: 0; /* Simulating a 'pop' */
         }
         
-        /* Footer/Update Timestamp */
+        /* Footer/Update Timestamp & Refresh Button Grouping */
         #last-updated { 
             color: #999; 
             font-size: 0.9em; 
-            margin-top: 20px;
+            margin-top: 30px; /* Space above the control group */
         }
         
         /* Button Styling */
@@ -307,15 +307,14 @@
         </table>
     </div>
 
+    <p id="last-updated">Fetching latest data...</p>
+    
+    <button class="refresh-btn" onclick="fetchLatestPrice()">Refresh Now</button>
     <div class="game-container">
         <h3>Bubble Poppin' Game</h3>
         <p>Your Pops: <span id="game-pop-count">0</span></p>
         <button id="mini-bubble-btn">POP!</button>
     </div>
-    <p id="last-updated">Fetching latest data...</p>
-    
-    <button class="refresh-btn" onclick="fetchLatestPrice()">Refresh Now</button>
-
     <script src="script.js"></script>
 </body>
 </html>
