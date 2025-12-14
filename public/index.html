@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bubble-price-tracker</title>
+    <title>Bubbles by XCOPY Dashboard</title>
     <style>
         /* General Black and White Theme */
         body { 
@@ -20,6 +20,13 @@
             justify-content: center;
         }
 
+        /* Title */
+        .title {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
         /* Bubble Container Styling */
         .bubble {
             width: 300px;
@@ -32,11 +39,6 @@
             justify-content: center;
             box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); 
             margin: 40px 0 20px 0; 
-        }
-
-        .title {
-            color: #fff;
-            margin-bottom: 20px;
         }
 
         /* Price Formatting (MAXIMIZE USD PRICE) */
@@ -67,6 +69,7 @@
             font-weight: bold;
             color: #000;
         }
+        /* Price Change Color Classes (used by script.js) */
         .change-up { color: #00C853; } /* Green */
         .change-down { color: #D50000; } /* Red */
         .change-neutral { color: #333; } /* Grey */
@@ -79,38 +82,58 @@
             padding-top: 5px; 
         }
         
-        /* Stats Styling: THE TRAY DESIGN */
-        .stats-container {
+        /* Stats Styling: THE TWO-TABLE DESIGN */
+        .data-tables-container {
+            display: flex;
+            justify-content: center; /* Center the table group */
+            gap: 20px; 
             margin-top: 20px;
-            padding: 20px;
-            background-color: #1a1a1a; 
-            border-radius: 8px;
             width: 90%;
-            max-width: 450px;
+            max-width: 900px; /* Max width for the table group */
+            flex-wrap: wrap; 
+        }
+
+        .data-table {
+            background-color: #1a1a1a; 
+            border-collapse: collapse;
+            width: 45%; /* Set width for two side-by-side tables */
+            min-width: 300px;
+            border-radius: 8px;
+            overflow: hidden; 
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
         }
-        .stat-line {
-            font-size: 1.1em;
-            font-weight: bold;
-            color: #ccc;
-            margin-bottom: 15px;
+
+        .data-table th, .data-table td {
+            padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px dashed #333;
-            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
         }
-        .stat-line:last-child {
+
+        .data-table th {
+            background-color: #111;
+            color: #fff;
+            font-size: 1.1em;
+            text-transform: uppercase;
+        }
+
+        .data-table tr:last-child td {
             border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
+        }
+
+        .data-table td:last-child {
+            text-align: right;
+            font-weight: bold;
+            color: #fff;
         }
         
+        /* Footer/Update Timestamp */
         #last-updated { 
             color: #999; 
             font-size: 0.9em; 
             margin-top: 20px;
         }
-
-        /* Buy Now Button Styling */
+        
+        /* Button Styling */
         .buy-now-btn {
             padding: 15px 30px;
             background: #2081e2; 
@@ -130,8 +153,6 @@
             background: #176cb6;
             transform: translateY(-2px);
         }
-
-        /* Refresh Button Styling */
         .refresh-btn {
             padding: 10px 20px;
             background: #000;
@@ -145,6 +166,17 @@
         }
         .refresh-btn:hover {
             background: #222;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .data-tables-container {
+                flex-direction: column;
+                gap: 20px;
+            }
+            .data-table {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -170,14 +202,50 @@
         <button class="buy-now-btn">Buy Now</button>
     </a>
 
-    <div class="stats-container">
-        <p id="popped-bubbles-display" class="stat-line">Total Popped: Loading...</p> 
-        <p id="last-pop-display" class="stat-line">Last Pop: Loading...</p> 
-        <p id="volume-24h-display" class="stat-line">24H Volume: Loading...</p> 
-        <p id="volume-total-display" class="stat-line">Total Volume: Loading...</p>
-        <p id="market-cap-display" class="stat-line">Market Cap: Loading...</p>
-        <p id="total-supply-display" class="stat-line">Current Supply: Loading...</p>
-        <p id="unique-holders-display" class="stat-line">Unique Holders: Loading...</p>
+    <div class="data-tables-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th colspan="2">Market Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Market Cap</td>
+                    <td id="market-cap-display">...</td>
+                </tr>
+                <tr>
+                    <td>24H Volume</td>
+                    <td id="volume-24h-display">...</td>
+                </tr>
+                <tr>
+                    <td>Total Volume</td>
+                    <td id="volume-total-display">...</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th colspan="2">Supply & Holders</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Total Popped</td>
+                    <td id="popped-bubbles-display">...</td>
+                </tr>
+                <tr>
+                    <td>Current Supply</td>
+                    <td id="total-supply-display">...</td>
+                </tr>
+                <tr>
+                    <td>Unique Holders</td>
+                    <td id="unique-holders-display">...</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     <p id="last-updated">Fetching latest data...</p>
