@@ -175,4 +175,147 @@
             font-weight: bold;
             cursor: pointer;
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
-            transition: transform 0.1s,
+            transition: transform 0.1s, opacity 0.1s;
+        }
+
+        #mini-bubble-btn:active {
+            transform: scale(0.8);
+            opacity: 0; /* Simulating a 'pop' */
+        }
+        
+        /* Footer/Update Timestamp */
+        #last-updated { 
+            color: #999; 
+            font-size: 0.9em; 
+            margin-top: 20px;
+        }
+        
+        /* Button Styling */
+        .buy-now-btn {
+            padding: 15px 30px;
+            background: #2081e2; 
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(32, 129, 226, 0.4);
+            transition: background 0.3s, transform 0.1s;
+        }
+        .buy-now-btn:hover {
+            background: #176cb6;
+            transform: translateY(-2px);
+        }
+        .refresh-btn {
+            padding: 10px 20px;
+            background: #000;
+            color: #fff;
+            border: 2px solid #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+            margin-top: 15px;
+        }
+        .refresh-btn:hover {
+            background: #222;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .data-tables-container {
+                flex-direction: column;
+                gap: 20px;
+            }
+            .data-table {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="title">
+        <span id="dynamic-title">how much is a bubble today?</span>
+    </h1>
+
+    <div class="bubble" id="price-bubble">
+        <div id="usd-price-container">
+            <span id="usd-price">Loading...</span> 
+            <span id="usd-currency">USD</span>
+        </div>
+        
+        <div id="eth-price-container">
+            <span id="eth-price">Loading...</span>
+        </div>
+
+        <div class="change-container">
+            <div id="price-change-24h" class="price-change-metric">Loading 24h...</div>
+        </div>
+    </div>
+    
+    <a href="https://opensea.io/collection/bubbles-by-xcopy" target="_blank">
+        <button class="buy-now-btn">Buy Now</button>
+    </a>
+
+    <div class="data-tables-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th colspan="2">Market Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Market Cap</td>
+                    <td id="market-cap-display">...</td>
+                </tr>
+                <tr>
+                    <td>24H Volume</td>
+                    <td id="volume-24h-display">...</td>
+                </tr>
+                <tr>
+                    <td>Total Volume</td>
+                    <td id="volume-total-display">...</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th colspan="2">Supply & Holders</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Total Popped</td>
+                    <td id="popped-bubbles-display">...</td>
+                </tr>
+                <tr>
+                    <td>Current Supply</td>
+                    <td id="total-supply-display">...</td>
+                </tr>
+                <tr>
+                    <td>Unique Holders</td>
+                    <td id="unique-holders-display">...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="game-container">
+        <h3>Bubble Poppin' Game</h3>
+        <p>Your Pops: <span id="game-pop-count">0</span></p>
+        <button id="mini-bubble-btn">POP!</button>
+    </div>
+    <p id="last-updated">Fetching latest data...</p>
+    
+    <button class="refresh-btn" onclick="fetchLatestPrice()">Refresh Now</button>
+
+    <script src="script.js"></script>
+</body>
+</html>
