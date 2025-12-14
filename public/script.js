@@ -1,13 +1,12 @@
-// public/script.js - ROBUST DATA POPULATION TO PREVENT CRASHES
+// public/script.js - FINAL GAME LOGIC WITH RESET AND CUSTOM MESSAGE BOX
 
 // =========================================================
-// STATS HELPER FUNCTIONS
+// STATS HELPER FUNCTIONS (No Functional Change)
 // =========================================================
 
 const formatCurrency = (numberString) => {
     if (numberString === 'N/A') return 'N/A';
     const num = parseFloat(numberString);
-    // Use try/catch for formatting just in case the input is extremely malformed
     try {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -29,7 +28,6 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
     const changeDisplay = document.getElementById(elementId);
     if (!changeDisplay) return 0;
 
-    // Use try-catch here to ensure changeValue parsing doesn't crash the script
     let changeValue;
     try {
         changeValue = parseFloat(changeString);
@@ -62,24 +60,30 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
 
 
 // =========================================================
-// ADDICTIVE MINI-GAME LOGIC (No change in functionality)
+// ADDICTIVE MINI-GAME LOGIC
 // =========================================================
 
 const POP_STORAGE_KEY = 'bubblePopCount';
 const MILESTONE = 100;
-const INITIAL_SIZE = 120;
-const SIZE_DECREMENT = 0.5;
+const INITIAL_SIZE = 150; // UPDATED to 150px
+const MINIMUM_SIZE = 70;
+const SIZE_DECREMENT = 0.8; // Increased decrement slightly for the bigger size
 
 let userPops = 0;
 const popButton = document.getElementById('mini-bubble-btn');
 const popCountDisplay = document.getElementById('game-pop-count');
 const milestoneMessage = document.getElementById('milestone-message');
+const resetButton = document.getElementById('game-reset-btn');
 
 
+/**
+ * Sets the button size based on pops, clamping at a minimum of MINIMUM_SIZE.
+ */
 function updateButtonSize() {
     if (!popButton) return;
     
-    const newSize = Math.max(60, INITIAL_SIZE - (userPops % MILESTONE) * SIZE_DECREMENT);
+    // Calculate new size based on pops relative to the current milestone loop
+    const newSize = Math.max(MINIMUM_SIZE, INITIAL_SIZE - (userPops % MILESTONE) * SIZE_DECREMENT);
     
     popButton.style.width = `${newSize}px`;
     popButton.style.height = `${newSize}px`;
@@ -87,13 +91,19 @@ function updateButtonSize() {
 }
 
 
+/**
+ * Resets the game or prepares for the next round after a milestone choice.
+ * @param {boolean} keepPopping - If true, keeps score and resets size; if false, resets score to 0.
+ */
 function resetGame(keepPopping) {
     if (keepPopping) {
-        updateButtonSize();
+        // YES: Keep total score, reset size for next round
+        updateButtonSize(); // This call uses the remaining pops, which effectively resets the size
         milestoneMessage.style.display = 'none';
         popButton.disabled = false;
         
     } else {
+        // NO: Reset everything (score and size)
         userPops = 0;
         localStorage.setItem(POP_STORAGE_KEY, userPops);
         popCountDisplay.textContent = formatCount(userPops);
@@ -106,7 +116,27 @@ function resetGame(keepPopping) {
     }
 }
 
+/**
+ * Handles the manual full game reset via the dedicated button.
+ */
+function handleFullReset() {
+    if (confirm("Are you sure you want to reset your pop count to 0?")) {
+        userPops = 0;
+        localStorage.setItem(POP_STORAGE_KEY, userPops);
+        popCountDisplay.textContent = formatCount(userPops);
+        
+        milestoneMessage.style.display = 'none';
+        popButton.disabled = false;
+        popButton.style.width = `${INITIAL_SIZE}px`;
+        popButton.style.height = `${INITIAL_SIZE}px`;
+        alert("Pop counter reset!");
+    }
+}
 
+
+/**
+ * Initializes the game state from local storage.
+ */
 function initializeGame() {
     const storedPops = localStorage.getItem(POP_STORAGE_KEY);
     userPops = storedPops ? parseInt(storedPops) : 0;
@@ -115,6 +145,9 @@ function initializeGame() {
 }
 
 
+/**
+ * Handles the click event, updating state and providing visual feedback.
+ */
 function handlePop() {
     if (popButton.disabled) return;
 
@@ -122,12 +155,14 @@ function handlePop() {
     localStorage.setItem(POP_STORAGE_KEY, userPops);
     popCountDisplay.textContent = formatCount(userPops);
 
+    // Shrink and Energy Field Animation
     updateButtonSize();
     popButton.classList.add('energy-field');
     setTimeout(() => {
         popButton.classList.remove('energy-field');
     }, 200);
 
+    // Milestone Check
     if (userPops > 0 && userPops % MILESTONE === 0) {
         popButton.disabled = true; 
         showMilestoneMessage();
@@ -135,30 +170,43 @@ function handlePop() {
 }
 
 
+/**
+ * Displays the "Keep Poppin?" choice with a customizable message box.
+ */
 function showMilestoneMessage() {
+    // Retrieve custom message from input, or use default
+    const customMessage = document.getElementById('milestone-text-input')?.value || `You hit ${userPops} pops! Do you want to keep poppin'?`;
+
     milestoneMessage.innerHTML = `
-        <p>You hit ${userPops} pops! Do you want to keep poppin'?</p>
-        <button id="milestone-yes">YES (Keep Score & Start Over)</button>
-        <button id="milestone-no">NO (Stop Here)</button>
+        <input type="text" id="milestone-text-input" placeholder="Edit the milestone message here..." value="You hit ${userPops} pops! Do you want to keep poppin'?" style="width: 90%; margin: 5px auto;"/>
+        <p>${customMessage}</p>
+        <div class="milestone-buttons">
+            <button id="milestone-yes">YES (Continue)</button>
+            <button id="milestone-no">NO (Stop/Reset)</button>
+        </div>
     `;
-    milestoneMessage.style.display = 'block';
+    milestoneMessage.style.display = 'flex';
 
     document.getElementById('milestone-yes').onclick = () => resetGame(true);
     document.getElementById('milestone-no').onclick = () => resetGame(false);
 }
 
 
+// Attach Handlers
 if (popButton) {
     popButton.addEventListener('click', handlePop);
-    initializeGame();
 }
+if (resetButton) {
+    resetButton.addEventListener('click', handleFullReset);
+}
+initializeGame(); // Call initialize on page load
 // =========================================================
 // END ADDICTIVE MINI-GAME LOGIC
 // =========================================================
 
 
 async function fetchLatestPrice() {
-    // Stat Displays (Ensure these IDs match your HTML exactly)
+    // ... (Your fetch logic remains the same as the previous step)
     const bubbleElement = document.getElementById('price-bubble');
     const usdPriceDisplay = document.getElementById('usd-price');
     const ethPriceDisplay = document.getElementById('eth-price');
@@ -191,8 +239,6 @@ async function fetchLatestPrice() {
         if (result.data) {
             const data = result.data;
             
-            // --- DATA POPULATION START ---
-            
             // 1. USD Price (WORKING)
             const formattedUsdPrice = parseFloat(data.usd || 0).toLocaleString('en-US', {
                 minimumFractionDigits: 2,
@@ -200,14 +246,13 @@ async function fetchLatestPrice() {
             });
             usdPriceDisplay.textContent = formattedUsdPrice;
             
-            // 2. ETH Price (LIKELY WHERE THE CRASH HAPPENED)
-            // Use logical OR (|| 'N/A') to prevent crashing if data properties are missing.
+            // 2. ETH Price 
             ethPriceDisplay.textContent = `(${data.price || 'N/A'} ${data.currency || 'ETH'})`;
 
             // 3. 24H Change
             const changeValue = updatePriceChangeDisplay(
                 'price-change-24h', 
-                data.price_change_24h || 0, // Default to 0 if null/missing
+                data.price_change_24h || 0,
                 '24h'
             );
             
@@ -242,8 +287,6 @@ async function fetchLatestPrice() {
             // 7. Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
             
-            // --- DATA POPULATION END ---
-            
         } else {
              updatedDisplay.textContent = `Data format error or empty data.`;
         }
@@ -261,5 +304,4 @@ async function fetchLatestPrice() {
     }
 }
 
-// *** EXPLICITLY CALL THE FETCH FUNCTION ON LOAD ***
 fetchLatestPrice();
