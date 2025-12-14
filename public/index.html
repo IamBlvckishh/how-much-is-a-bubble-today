@@ -149,6 +149,7 @@
         
         /* Mini-Game Styling */
         .game-container {
+            position: relative; 
             margin-top: 20px; 
             background-color: #1a1a1a;
             padding: 20px;
@@ -165,7 +166,6 @@
             color: #000;
             border: none;
             border-radius: 50%;
-            /* NEW: Even Larger Initial Size */
             width: 150px; 
             height: 150px;
             font-size: 2em;
@@ -184,33 +184,39 @@
             100% { box-shadow: 0 0 30px 10px rgba(255, 255, 255, 0), inset 0 0 5px rgba(255, 255, 255, 0.5); }
         }
 
-        /* Milestone Message Styling */
+        /* Milestone Message Styling - This is the modal/pop-up */
         #milestone-message {
-            margin-top: 15px;
-            font-weight: bold;
-            display: flex;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.95); /* Nearly black overlay */
+            border-radius: 10px;
+            padding: 20px;
+            display: none; /* Controlled by JS */
             flex-direction: column;
-            gap: 10px;
-        }
-        
-        #milestone-text-input {
-            width: 90%;
-            padding: 8px;
-            margin: 5px auto;
-            border: 1px solid #555;
-            background-color: #333;
-            color: #fff;
-            border-radius: 5px;
+            justify-content: center;
+            align-items: center;
             text-align: center;
+            z-index: 10;
+        }
+
+        #milestone-message p {
+            font-size: 1.5em;
+            color: #ffcc00; /* Highlighted message color */
+            margin-bottom: 20px;
+            text-shadow: 0 0 5px #ffcc0080;
         }
         
         .milestone-buttons button {
-            padding: 8px 15px;
-            margin: 0 5px;
+            padding: 10px 20px;
+            margin: 0 10px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
+            font-size: 1.1em;
             transition: background 0.2s;
         }
         #milestone-yes {
@@ -221,52 +227,42 @@
             background-color: #D50000; /* Red */
             color: white;
         }
-        
-        /* Footer/Update Timestamp & Refresh Button Grouping */
-        #last-updated { 
-            color: #999; 
-            font-size: 0.9em; 
-            margin-top: 30px; 
-        }
-        
-        /* Button Styling */
-        .buy-now-btn {
-            padding: 15px 30px;
-            background: #2081e2; 
+
+        /* Admin/Edit Input Styling */
+        #milestone-text-input {
+            width: 90%;
+            padding: 8px;
+            margin: 15px auto 5px auto; /* NEW POSITIONING */
+            border: 1px solid #555;
+            background-color: #333;
             color: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 1.2em;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 20px;
-            box-shadow: 0 4px 15px rgba(32, 129, 226, 0.4);
-            transition: background 0.3s, transform 0.1s;
-        }
-        .buy-now-btn:hover {
-            background: #176cb6;
-            transform: translateY(-2px);
-        }
-        .refresh-btn {
-            padding: 10px 20px;
-            background: #000;
-            color: #fff;
-            border: 2px solid #fff;
             border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.3s;
-            margin-top: 15px;
+            text-align: center;
+            font-size: 0.9em;
         }
-        .refresh-btn:hover {
-            background: #222;
+        /* Hide the input box by default */
+        .admin-hidden {
+            display: none !important;
+        }
+
+        /* Admin Toggle Styling */
+        #admin-toggle {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 0.8em;
+            color: #D50000;
+            cursor: pointer;
+            padding: 2px 5px;
+            border: 1px solid #D50000;
+            border-radius: 3px;
+            display: none; 
+            z-index: 11; /* Ensure it's above the modal */
         }
 
         .game-reset-btn {
             background: none;
-            color: #ffcc00; /* Neon yellow/gold for reset */
+            color: #ffcc00; 
             border: 1px solid #ffcc00;
             padding: 5px 10px;
             border-radius: 5px;
@@ -328,6 +324,7 @@
                     <td id="volume-24h-display">...</td>
                 </tr>
                 <tr>
+                    <tr>
                     <td>Total Volume</td>
                     <td id="volume-total-display">...</td>
                 </tr>
@@ -361,9 +358,21 @@
     <button class="refresh-btn" onclick="fetchLatestPrice()">Refresh Now</button>
 
     <div class="game-container">
+        <span id="admin-toggle">Admin Mode: OFF</span>
+        
         <p>Your Pops: <span id="game-pop-count">0</span></p>
-        <button id="mini-bubble-btn">POP IT!</button>
-        <div id="milestone-message" style="display: none;"></div>
+        <button id="mini-bubble-btn">POP IT</button>
+        
+        <div id="milestone-message" style="display: none;">
+            <p id="milestone-display-text">Milestone Message Here</p>
+            <div class="milestone-buttons">
+                <button id="milestone-yes">YES (Continue)</button>
+                <button id="milestone-no">NO (Stop/Reset)</button>
+            </div>
+        </div>
+        <input type="text" id="milestone-text-input" class="admin-hidden" 
+               placeholder="Edit mini-billboard message here (Admin Only)" maxlength="100"/>
+
         <button class="game-reset-btn" id="game-reset-btn">Reset Pop Counter</button>
     </div>
     <script src="script.js"></script>
