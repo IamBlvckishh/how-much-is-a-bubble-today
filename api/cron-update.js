@@ -1,7 +1,7 @@
-// api/cron-update.js - FINAL STABLE CORE: Caching for Maximum Speed
+// api/cron-update.js - FINAL STABLE CORE: Caching and Correct 24H Volume
 
 // ----------------------------------------------------
-// Caching Variables (Defined outside the handler for persistence)
+// Caching Variables 
 // ----------------------------------------------------
 let dataCache = null;
 let lastFetchTime = 0;
@@ -67,10 +67,9 @@ export default async function handler(req, res) {
     return res.status(405).send({ message: 'Only GET or POST requests allowed' });
   }
 
-  // >>> 1. CHECK CACHE (THE SPEED BOOSTER)
+  // >>> 1. CHECK CACHE (SPEED BOOSTER)
   const now = Date.now();
   if (dataCache && (now - lastFetchTime < CACHE_DURATION_MS)) {
-      // Serve cached data INSTANTLY
       return res.status(200).json({ 
           message: 'Data served from cache.',
           data: dataCache
@@ -102,19 +101,25 @@ export default async function handler(req, res) {
     
     // Extract Metrics
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
-    const totalVolumeValue = parseFloat(stats.volume) || 0; 
     const uniqueOwners = parseInt(stats.num_owners) || 0; 
     const currency = stats.floor_price_symbol || 'ETH';
     
-    // --- 24H & 7D PRICE CHANGE LOGIC ---
+    // --- 24H & 7D PRICE CHANGE AND VOLUME LOGIC ---
     let priceChange24h = 0;
     let priceChange7d = 0; 
-    
+    let totalVolumeValue = 0; // <<< Initialized to 0, will be filled with 24H data
+
     if (data.intervals && data.intervals.length > 0) {
         const interval24h = data.intervals.find(i => i.interval === 'one_day') || data.intervals[0];
-        const floorChange24h = parseFloat(interval24h.floor_price_change) || 0;
-        const previousFloor24h = parseFloat(interval24h.floor_price) || 0;
-        priceChange24h = safePercentageChange(floorChange24h, previousFloor24h);
+        if (interval24h) {
+            const floorChange24h = parseFloat(interval24h.floor_price_change) || 0;
+            const previousFloor24h = parseFloat(interval24h.floor_price) || 0;
+            
+            // CORRECT 24H VOLUME EXTRACTION
+            totalVolumeValue = parseFloat(interval24h.volume) || 0; 
+
+            priceChange24h = safePercentageChange(floorChange24h, previousFloor24h);
+        }
 
         const interval7d = data.intervals.find(i => i.interval === 'seven_day'); 
         if (interval7d) {
@@ -163,7 +168,7 @@ export default async function handler(req, res) {
       usd: floorPriceUSD, 
       market_cap_eth: marketCapETH.toFixed(2), 
       market_cap_usd: marketCapUSD,           
-      volume: totalVolumeValue.toFixed(2),
+      volume: totalVolumeValue.toFixed(2), // <<< THIS IS NOW THE CORRECT 24H VOLUME
       volume_usd: totalVolumeUSD,          
       price_change_24h: priceChange24h.toFixed(2), 
       price_change_7d: priceChange7d.toFixed(2), 
