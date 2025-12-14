@@ -39,13 +39,14 @@
             justify-content: center;
         }
 
-        /* Title */
+        /* Title: Beautified with Glow */
         .title {
             color: #fff;
             margin-bottom: 20px;
             font-size: 1.8em;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); /* Soft White Glow */
         }
-
+        
         /* Bubble Container Styling */
         .bubble {
             width: 300px;
@@ -58,18 +59,7 @@
             justify-content: center;
             box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); 
             margin: 40px 0 20px 0; 
-            transition: transform 0.2s ease-out, box-shadow 0.5s ease-in-out; /* Added transitions */
-        }
-
-        /* Pulse Classes (Applied by script.js) */
-        .pulse-up {
-            animation: pulse-up 3s infinite ease-in-out;
-        }
-        .pulse-down {
-            animation: pulse-down 2s infinite ease-in-out;
-        }
-        .pulse-neutral {
-            animation: pulse-neutral 4s infinite ease-in-out;
+            transition: transform 0.2s ease-out, box-shadow 0.5s ease-in-out; 
         }
         
         /* Price Formatting (MAXIMIZE USD PRICE) */
@@ -116,18 +106,18 @@
         /* Stats Styling: THE TWO-TABLE DESIGN */
         .data-tables-container {
             display: flex;
-            justify-content: center; /* Center the table group */
+            justify-content: center; 
             gap: 20px; 
             margin-top: 20px;
             width: 90%;
-            max-width: 900px; /* Max width for the table group */
+            max-width: 900px; 
             flex-wrap: wrap; 
         }
 
         .data-table {
             background-color: #1a1a1a; 
             border-collapse: collapse;
-            width: 45%; /* Set width for two side-by-side tables */
+            width: 45%; 
             min-width: 300px;
             border-radius: 8px;
             overflow: hidden; 
@@ -155,6 +145,41 @@
             text-align: right;
             font-weight: bold;
             color: #fff;
+        }
+        
+        /* Mini-Game Styling */
+        .game-container {
+            margin-top: 30px;
+            background-color: #1a1a1a;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .game-container h3 {
+            margin-top: 0;
+            color: #fff;
+        }
+
+        #mini-bubble-btn {
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            font-size: 1.5em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+            transition: transform 0.1s, opacity 0.1s;
+        }
+
+        #mini-bubble-btn:active {
+            transform: scale(0.8);
+            opacity: 0; /* Simulating a 'pop' */
         }
         
         /* Footer/Update Timestamp */
@@ -212,7 +237,9 @@
     </style>
 </head>
 <body>
-    <h1 class="title">how much is a bubble today?</h1>
+    <h1 class="title">
+        <span id="dynamic-title">how much is a bubble today?</span>
+    </h1>
 
     <div class="bubble" id="price-bubble">
         <div id="usd-price-container">
@@ -232,6 +259,12 @@
     <a href="https://opensea.io/collection/bubbles-by-xcopy" target="_blank">
         <button class="buy-now-btn">Buy Now</button>
     </a>
+
+    <div class="game-container">
+        <h3>Bubble Poppin' Game</h3>
+        <p>Your Pops: <span id="game-pop-count">0</span></p>
+        <button id="mini-bubble-btn">POP!</button>
+    </div>
 
     <div class="data-tables-container">
         <table class="data-table">
