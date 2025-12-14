@@ -5,6 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bubbles by XCOPY Dashboard</title>
     <style>
+        /* CSS for the Pulse Effect */
+        @keyframes pulse-up {
+            0% { box-shadow: 0 0 10px rgba(0, 200, 83, 0.4); } /* Green */
+            50% { box-shadow: 0 0 40px rgba(0, 200, 83, 0.8); }
+            100% { box-shadow: 0 0 10px rgba(0, 200, 83, 0.4); }
+        }
+
+        @keyframes pulse-down {
+            0% { box-shadow: 0 0 10px rgba(213, 0, 0, 0.4); } /* Red */
+            50% { box-shadow: 0 0 40px rgba(213, 0, 0, 0.8); }
+            100% { box-shadow: 0 0 10px rgba(213, 0, 0, 0.4); }
+        }
+
+        @keyframes pulse-neutral {
+            0% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.4); } /* White */
+            50% { box-shadow: 0 0 30px rgba(255, 255, 255, 0.6); }
+            100% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.4); }
+        }
+        
         /* General Black and White Theme */
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -39,8 +58,20 @@
             justify-content: center;
             box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); 
             margin: 40px 0 20px 0; 
+            transition: transform 0.2s ease-out, box-shadow 0.5s ease-in-out; /* Added transitions */
         }
 
+        /* Pulse Classes (Applied by script.js) */
+        .pulse-up {
+            animation: pulse-up 3s infinite ease-in-out;
+        }
+        .pulse-down {
+            animation: pulse-down 2s infinite ease-in-out;
+        }
+        .pulse-neutral {
+            animation: pulse-neutral 4s infinite ease-in-out;
+        }
+        
         /* Price Formatting (MAXIMIZE USD PRICE) */
         #usd-price-container {
             font-weight: bold;
@@ -183,7 +214,7 @@
 <body>
     <h1 class="title">how much is a bubble today?</h1>
 
-    <div class="bubble">
+    <div class="bubble" id="price-bubble">
         <div id="usd-price-container">
             <span id="usd-price">Loading...</span> 
             <span id="usd-currency">USD</span>
