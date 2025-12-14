@@ -1,4 +1,4 @@
-// public/script.js - MINI-BILLBOARD ACTIVATED ON MILESTONE
+// public/script.js - CONSTRAINED BILLBOARD ACTIVATED ON MILESTONE
 
 // =========================================================
 // STATS HELPER FUNCTIONS (Unchanged)
@@ -74,8 +74,8 @@ const popButton = document.getElementById('mini-bubble-btn');
 const popCountDisplay = document.getElementById('game-pop-count');
 const milestoneMessageDiv = document.getElementById('milestone-message');
 const resetButton = document.getElementById('game-reset-btn');
+const gameContentDiv = document.getElementById('game-content'); // NEW REFERENCE
 
-// NEW/REASSIGNED ELEMENTS for the popup
 const billboardButton = document.getElementById('copy-billboard-btn');
 const billboardMessage = document.getElementById('billboard-message');
 const copyStatus = document.getElementById('copy-status');
@@ -93,9 +93,12 @@ function updateButtonSize() {
 
 
 function resetGame(keepPopping) {
+    // Show game content, hide milestone message
+    gameContentDiv.style.display = 'flex';
+    milestoneMessageDiv.style.display = 'none';
+
     if (keepPopping) {
         updateButtonSize();
-        milestoneMessageDiv.style.display = 'none';
         popButton.disabled = false;
         
     } else {
@@ -103,7 +106,6 @@ function resetGame(keepPopping) {
         localStorage.setItem(POP_STORAGE_KEY, userPops);
         popCountDisplay.textContent = formatCount(userPops);
         
-        milestoneMessageDiv.style.display = 'none';
         popButton.disabled = false;
         
         popButton.style.width = `${INITIAL_SIZE}px`;
@@ -117,7 +119,10 @@ function handleFullReset() {
         localStorage.setItem(POP_STORAGE_KEY, userPops);
         popCountDisplay.textContent = formatCount(userPops);
         
+        // Ensure game content is shown after full reset
+        gameContentDiv.style.display = 'flex';
         milestoneMessageDiv.style.display = 'none';
+        
         popButton.disabled = false;
         popButton.style.width = `${INITIAL_SIZE}px`;
         popButton.style.height = `${INITIAL_SIZE}px`;
@@ -131,6 +136,10 @@ function initializeGame() {
     userPops = storedPops ? parseInt(storedPops) : 0;
     popCountDisplay.textContent = formatCount(userPops);
     updateButtonSize();
+    
+    // Crucial: Ensure the game starts with the message hidden and game content shown
+    gameContentDiv.style.display = 'flex';
+    milestoneMessageDiv.style.display = 'none';
 }
 
 
@@ -158,6 +167,8 @@ function handlePop() {
  * Displays the Mini-Billboard pop-up on milestone.
  */
 function showMilestoneMessage() {
+    // Hide game content and show milestone message
+    gameContentDiv.style.display = 'none';
     milestoneMessageDiv.style.display = 'flex';
 
     // Ensure click handlers are attached to the buttons within the popup
@@ -199,7 +210,6 @@ if (popButton) {
 if (resetButton) {
     resetButton.addEventListener('click', handleFullReset);
 }
-// Attach the copy handler to the billboard button inside the milestone div
 if (billboardButton) {
     billboardButton.addEventListener('click', copyBillboardMessage);
 }
