@@ -27,9 +27,6 @@ const formatCount = (count) => {
 
 /**
  * Helper to format the price change percentage and apply color class to the element.
- * @param {string} elementId - The ID of the HTML element to update.
- * @param {string} changeString - The percentage change string from the API.
- * @param {string} label - The label to display (e.g., '24h' or '7d').
  */
 const updatePriceChangeDisplay = (elementId, changeString, label) => {
     const changeDisplay = document.getElementById(elementId);
@@ -82,7 +79,6 @@ async function fetchLatestPrice() {
     // 2. Set Loading State
     usdPriceDisplay.textContent = '...';
     updatedDisplay.textContent = 'Fetching latest data...';
-    // Small loop to quickly set all secondary stats to '...'
     Object.values(displays).forEach(el => el.textContent = '...');
 
     try {
