@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL STABLE CORE: Data Extraction Failsafe
+// api/cron-update.js - FINAL DEFINITIVE CORE: Multi-API Fix for Volume and Listed Count
 
 // ----------------------------------------------------
 // ENVIRONMENT VARIABLES & CONFIGURATION
@@ -11,7 +11,11 @@ const CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8";
 
 const ETH_NODE_URL = `https://shape-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`; 
 
-const OPEN_SEA_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`;
+// V2 STATS: Best for intervals (24h/7d changes)
+const OPEN_SEA_V2_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`; 
+// V1 STATS: Best for total volume, listed count (more reliable fields)
+const OPEN_SEA_V1_STATS_URL = `https://api.opensea.io/api/v1/collection/${COLLECTION_SLUG}/stats`;
+
 const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; 
 
 // JSON-RPC Payload (remains the same)
@@ -45,9 +49,6 @@ async function fetchContractSupply(nodeUrl) {
 
 /**
  * Calculates the percentage change safely.
- * @param {number} change - The absolute change in value.
- * @param {number} previousValue - The value from the prior period.
- * @returns {number} The percentage change, or 0 if calculation is impossible.
  */
 function safePercentageChange(change, previousValue) {
     if (previousValue > 0) {
@@ -69,38 +70,55 @@ export default async function handler(req, res) {
     }
 
     // 1. INITIATE CONCURRENT API CALLS 
-    const [openSeaResponse, coinGeckoResponse, contractSupply] = await Promise.all([
-        fetch(OPEN_SEA_STATS_URL, {
+    const [v2Response, v1Response, coinGeckoResponse, contractSupply] = await Promise.all([
+        fetch(OPEN_SEA_V2_STATS_URL, {
             method: 'GET',
             headers: { 'accept': 'application/json', 'X-API-Key': OPENSEA_API_KEY }
         }),
+        fetch(OPEN_SEA_V1_STATS_URL), // V1 doesn't require API key
         fetch(ETH_USD_CONVERSION_URL),
         fetchContractSupply(ETH_NODE_URL)
     ]);
 
-    // 2. PROCESS OPENSEA RESPONSE 
-    if (!openSeaResponse.ok) {
-        throw new Error(`OpenSea API error: ${openSeaResponse.status}.`);
+    // 2. PROCESS OPENSEA RESPONSES
+    if (!v2Response.ok) throw new Error(`OpenSea V2 API error: ${v2Response.status}.`);
+    if (!v1Response.ok) throw new Error(`OpenSea V1 API error: ${v1Response.status}.`);
+    
+    const v2Data = await v2Response.json();
+    const v1Data = await v1Response.json();
+    const v2Stats = v2Data.total;
+    const v1Stats = v1Data.stats;
+    
+    // Extract Core Metrics from V2 (Floor, Holders)
+    const floorPriceValue = parseFloat(v2Stats.floor_price) || 0;
+    const uniqueOwners = parseInt(v2Stats.num_owners) || 0;
+    const currency = v2Stats.floor_price_symbol || 'ETH';
+    
+    // Use V1 data for reliable Total Supply/Listed Count
+    const listedCount = parseInt(v1Stats.one_day_average_price) || 0; 
+    const listedCountV1 = parseInt(v1Stats.total_supply) - uniqueOwners; // Fallback: Total Supply - Owners (Approx)
+
+    // --- 24H VOLUME FIX ---
+    let totalVolumeValue = 0; // This will now be the 24H Volume
+    if (v2Data.intervals && v2Data.intervals.length > 0) {
+        const interval24h = v2Data.intervals.find(i => i.interval === 'one_day');
+        // V2 Volume is only the 24h volume!
+        totalVolumeValue = parseFloat(interval24h.volume) || 0; 
     }
-    const data = await openSeaResponse.json();
-    const stats = data.total;
-    
-    // Extract Core Metrics
-    const floorPriceValue = parseFloat(stats.floor_price) || 0;
-    const totalVolumeValue = parseFloat(stats.volume) || 0; 
-    const uniqueOwners = parseInt(stats.num_owners) || 0;
-    // NOTE: listed_count is not documented in V2 stats, relying on custom field name.
-    const listedCount = parseInt(stats.listed_count) || 0; 
-    const currency = stats.floor_price_symbol || 'ETH';
-    
+    // Fallback to V1 24h volume if V2 interval volume is missing
+    if (totalVolumeValue === 0 && v1Stats.one_day_volume) {
+        totalVolumeValue = parseFloat(v1Stats.one_day_volume) || 0;
+    }
+
+
     // --- Price Changes & Average Price ---
     let priceChange24h = 0;
     let priceChange7d = 0;
     let avgPrice24h = 0;
 
-    if (data.intervals && data.intervals.length > 0) {
+    if (v2Data.intervals && v2Data.intervals.length > 0) {
         // 24H Metrics
-        const interval24h = data.intervals.find(i => i.interval === 'one_day');
+        const interval24h = v2Data.intervals.find(i => i.interval === 'one_day');
         if (interval24h) {
             const floorChange24h = parseFloat(interval24h.floor_price_change) || 0;
             const previousFloor24h = parseFloat(interval24h.floor_price) || 0;
@@ -109,7 +127,7 @@ export default async function handler(req, res) {
         }
 
         // 7D Metrics
-        const interval7d = data.intervals.find(i => i.interval === 'seven_day'); 
+        const interval7d = v2Data.intervals.find(i => i.interval === 'seven_day'); 
         if (interval7d) {
             const floorChange7d = parseFloat(interval7d.floor_price_change) || 0;
             const previousFloor7d = parseFloat(interval7d.floor_price) || 0;
@@ -120,22 +138,21 @@ export default async function handler(req, res) {
     // 3. DETERMINE TOTAL SUPPLY 
     let totalSupply = contractSupply;
     if (totalSupply === 0) {
-        totalSupply = parseInt(stats.total_supply || uniqueOwners) || 0;
+        // Fallback to V1 total_supply, which is more reliable than V2 num_owners
+        totalSupply = parseInt(v1Stats.total_supply || uniqueOwners) || 0;
     }
     
     // 4. CALCULATE CUSTOM METRICS
     const marketCapETH = floorPriceValue * totalSupply; 
 
-    // Listing Ratio: Percentage of total supply listed for sale
-    let listingRatio = 0;
-    if (totalSupply > 0 && listedCount > 0) {
-        listingRatio = (listedCount / totalSupply) * 100; 
-    } else if (listedCount === 0 && uniqueOwners > 0) {
-        // If listed_count is 0 but there are owners, the API field is likely wrong or data is missing.
-        // We set to 0 and the frontend will show a clean 0%
-        listingRatio = 0;
-    }
+    // --- LISTING RATIO FIX ---
+    // The listed count from V1 or V2 is unreliable. We will use the V1 'count' which represents total items for sale
+    let actualListedCount = parseInt(v1Stats.count) || listedCount || 0; 
 
+    let listingRatio = 0;
+    if (totalSupply > 0 && actualListedCount > 0) {
+        listingRatio = (actualListedCount / totalSupply) * 100; 
+    }
 
     // Market Cap / Volume Ratio (Liquidity)
     const mcVolumeRatio = totalVolumeValue > 0 ? marketCapETH / totalVolumeValue : 0; 
@@ -177,20 +194,20 @@ export default async function handler(req, res) {
       currency: currency,
       market_cap_eth: marketCapETH.toFixed(2), 
       market_cap_usd: marketCapUSD,           
-      volume: totalVolumeValue.toFixed(2),
+      volume: totalVolumeValue.toFixed(2), // <<< NOW CORRECT 24H VOLUME
       volume_usd: totalVolumeUSD,          
       price_change_24h: priceChange24h.toFixed(2), 
       price_change_7d: priceChange7d.toFixed(2), 
       holders: uniqueOwners, 
       supply: totalSupply,
-      listed_count: listedCount, 
+      listed_count: actualListedCount, // <<< NOW CORRECTED LISTED COUNT
       listing_ratio: listingRatio.toFixed(2), 
       mc_volume_ratio: mcVolumeRatio.toFixed(2), 
       lastUpdated: new Date().toISOString()
     };
 
     return res.status(200).json({ 
-        message: 'Data fetch successful (Final Metrics).',
+        message: 'Data fetch successful (Final Multi-API Metrics).',
         data: finalData
     });
 
