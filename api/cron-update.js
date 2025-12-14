@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL ROBUST CORE: Corrected 24h Price Change Calculation
+// api/cron-update.js - FINAL CORE: All Advanced Metrics
 
 // ----------------------------------------------------
 // ENVIRONMENT VARIABLES & CONFIGURATION
@@ -72,38 +72,55 @@ export default async function handler(req, res) {
     const data = await openSeaResponse.json();
     const stats = data.total;
     
-    // Extract Metrics
+    // Extract Core Metrics
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
     const totalVolumeValue = parseFloat(stats.volume) || 0; 
+    const uniqueOwners = parseInt(stats.num_owners) || 0;
+    const listedCount = parseInt(stats.listed_count) || 0; // <<< NEW LISTED COUNT
     const currency = stats.floor_price_symbol || 'ETH';
     
-    // --- CORRECTED 24H PRICE CHANGE LOGIC ---
+    // --- Price Changes & Average Price ---
     let priceChange24h = 0;
+    let priceChange7d = 0;
+    let avgPrice24h = 0; // <<< NEW AVERAGE PRICE
 
-    // Check for the intervals array and the first interval (which is typically the 24h period)
     if (data.intervals && data.intervals.length > 0) {
-        const interval = data.intervals[0];
-        const floorChange = parseFloat(interval.floor_price_change) || 0;
-        const previousFloor = parseFloat(interval.floor_price) || 0; // Use 'floor_price' from the interval as the base
+        // 24H Metrics
+        const interval24h = data.intervals.find(i => i.interval === 'one_day') || data.intervals[0];
+        const floorChange24h = parseFloat(interval24h.floor_price_change) || 0;
+        const previousFloor24h = parseFloat(interval24h.floor_price) || 0;
+        avgPrice24h = parseFloat(interval24h.average_price) || 0; // <<< AVERAGE PRICE EXTRACTED
 
-        if (previousFloor > 0) {
-            // Calculate percentage based on the difference and the previous floor price
-            priceChange24h = (floorChange / previousFloor) * 100;
-        } else if (floorChange !== 0) {
-            // If previous floor is 0 but there was a change, the percentage calculation fails. 
-            // We just use 0% or N/A in this scenario to prevent division by zero errors.
+        if (previousFloor24h > 0) {
+            priceChange24h = (floorChange24h / previousFloor24h) * 100;
+        }
+
+        // 7D Metrics
+        const interval7d = data.intervals.find(i => i.interval === 'seven_day'); 
+        if (interval7d) {
+            const floorChange7d = parseFloat(interval7d.floor_price_change) || 0;
+            const previousFloor7d = parseFloat(interval7d.floor_price) || 0;
+            if (previousFloor7d > 0) {
+                priceChange7d = (floorChange7d / previousFloor7d) * 100;
+            }
         }
     }
     
     // 3. DETERMINE TOTAL SUPPLY 
     let totalSupply = contractSupply;
     if (totalSupply === 0) {
-        totalSupply = parseInt(stats.total_supply || stats.num_owners) || 0;
+        // Fallback for contract supply
+        totalSupply = parseInt(stats.total_supply || uniqueOwners) || 0;
     }
-
-
-    // 4. CALCULATE MARKET CAP
+    
+    // 4. CALCULATE CUSTOM METRICS
     const marketCapETH = floorPriceValue * totalSupply; 
+
+    // Listing Ratio: Percentage of total supply listed for sale
+    const listingRatio = totalSupply > 0 ? (listedCount / totalSupply) * 100 : 0; // <<< NEW LISTING RATIO
+
+    // Market Cap / Volume Ratio (Liquidity)
+    const mcVolumeRatio = totalVolumeValue > 0 ? marketCapETH / totalVolumeValue : 0; // <<< NEW MC/VOLUME RATIO
 
 
     // 5. PROCESS COINGECKO RESPONSE & CALCULATE USD Metrics
@@ -111,6 +128,7 @@ export default async function handler(req, res) {
     let floorPriceUSD = 'N/A';
     let marketCapUSD = 'N/A'; 
     let totalVolumeUSD = 'N/A';
+    let avgPriceUSD = 'N/A'; // <<< NEW AVERAGE PRICE USD
 
     if (coinGeckoResponse.ok) {
         const cgData = await coinGeckoResponse.json();
@@ -127,24 +145,34 @@ export default async function handler(req, res) {
         if (totalVolumeValue > 0) {
             totalVolumeUSD = (totalVolumeValue * ethUsdRate).toFixed(0); 
         }
+        if (avgPrice24h > 0) {
+            avgPriceUSD = (avgPrice24h * ethUsdRate).toFixed(2); // <<< CALCULATE AVG PRICE USD
+        }
     }
     
     // 6. CONSTRUCT FINAL RESPONSE
     const finalData = {
       price: floorPriceValue.toFixed(4), 
-      currency: currency,
       usd: floorPriceUSD, 
+      avg_price_24h: avgPrice24h.toFixed(4), // <<< NEW AVG PRICE ETH
+      avg_price_usd: avgPriceUSD, // <<< NEW AVG PRICE USD
+      currency: currency,
       market_cap_eth: marketCapETH.toFixed(2), 
       market_cap_usd: marketCapUSD,           
       volume: totalVolumeValue.toFixed(2),
       volume_usd: totalVolumeUSD,          
-      price_change_24h: priceChange24h.toFixed(2), // <<< Corrected 24H CHANGE
-      lastUpdated: new Date().toISOString(),
-      supply: totalSupply 
+      price_change_24h: priceChange24h.toFixed(2), 
+      price_change_7d: priceChange7d.toFixed(2), 
+      holders: uniqueOwners, 
+      supply: totalSupply,
+      listed_count: listedCount, // <<< NEW LISTED COUNT
+      listing_ratio: listingRatio.toFixed(2), // <<< NEW LISTING RATIO
+      mc_volume_ratio: mcVolumeRatio.toFixed(2), // <<< NEW MC/VOLUME RATIO
+      lastUpdated: new Date().toISOString()
     };
 
     return res.status(200).json({ 
-        message: 'Data fetch successful (Floor, MC, Volume, 24h Change).',
+        message: 'Data fetch successful (All Advanced Metrics).',
         data: finalData
     });
 
