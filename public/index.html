@@ -11,8 +11,8 @@
             text-align: center; 
             padding: 0; 
             margin: 0;
-            background-color: #000; /* Black background */
-            color: #fff; /* White text */
+            background-color: #000; 
+            color: #fff; 
             height: 100vh;
             display: flex;
             flex-direction: column;
@@ -20,17 +20,17 @@
             justify-content: center;
         }
 
-        /* Bubble Container Styling */
+        /* Bubble Container Styling (Floor Price) */
         .bubble {
             width: 300px;
             height: 300px;
-            background: #fff; /* White circle background */
+            background: #fff; 
             border-radius: 50%;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); /* Subtle white glow */
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); 
             margin: 40px 0 20px 0; 
         }
 
@@ -42,8 +42,14 @@
         /* Price Formatting */
         #usd-price-container {
             font-weight: bold;
-            color: #000; /* Black text inside the white bubble */
+            color: #000; 
             margin-bottom: 5px;
+        }
+        .price-label {
+            font-size: 0.5em;
+            display: block;
+            color: #666;
+            margin-top: 5px;
         }
         #usd-price { 
             font-size: 3.5em; 
@@ -54,12 +60,16 @@
             display: block;
         }
 
-        /* 24H CHANGE STYLING */
-        #price-change-24h {
-            font-size: 1.2em;
-            font-weight: bold;
+        /* 24H/7D CHANGE STYLING */
+        .change-container {
+            display: flex;
+            gap: 15px;
             margin-top: 10px;
-            /* Default color - will be overridden by script */
+            margin-bottom: 10px;
+        }
+        .price-change-metric {
+            font-size: 1.0em;
+            font-weight: bold;
             color: #000; 
         }
         .change-up { color: #00C853; } /* Green */
@@ -79,14 +89,46 @@
             border-top: 1px solid #333;
             width: 90%;
             max-width: 400px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
         }
         .stat-line {
-            font-size: 1.1em;
+            width: 48%; /* Two columns */
+            font-size: 0.95em;
             font-weight: bold;
             color: #999;
             margin-bottom: 15px;
+            text-align: left;
         }
-        
+        .stat-value {
+            display: block;
+            color: #fff;
+            font-size: 1.1em;
+            margin-top: 2px;
+        }
+
+        /* New Average Price Container */
+        .avg-price-container {
+            border: 1px dashed #333;
+            padding: 10px;
+            margin-bottom: 20px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .avg-price-container p {
+            margin: 0;
+            font-size: 1em;
+            color: #999;
+        }
+        #avg-price-display {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #fff;
+        }
+
+
         #last-updated { 
             color: #999; 
             font-size: 0.9em; 
@@ -113,20 +155,33 @@
     <h1 class="title">how much is a bubble today?</h1>
 
     <div class="bubble">
+        <span class="price-label">CURRENT FLOOR PRICE</span>
         <div id="usd-price-container">
             <span id="usd-price">Loading...</span> 
             <span id="usd-currency">USD</span>
         </div>
         
-        <div id="price-change-24h">Loading...</div> <div id="eth-price-container">
+        <div class="change-container">
+            <div id="price-change-24h" class="price-change-metric">Loading 24h...</div>
+            <div id="price-change-7d" class="price-change-metric">Loading 7d...</div>
+        </div>
+
+        <div id="eth-price-container">
             <span id="eth-price">Loading...</span>
         </div>
     </div>
     
-    <div class="stats-container">
-        <p id="market-cap-display" class="stat-line">Market Cap: Loading...</p>
-        <p id="total-volume-display" class="stat-line">Total Volume: Loading...</p>
+    <div class="avg-price-container">
+        <p>24H AVERAGE SALE PRICE</p>
+        <div id="avg-price-display">Loading...</div>
     </div>
+
+    <div class="stats-container">
+        <p id="market-cap-display" class="stat-line">Market Cap: <span class="stat-value">Loading...</span></p>
+        <p id="total-supply-display" class="stat-line">Total Supply: <span class="stat-value">Loading...</span></p>
+        <p id="mc-volume-ratio-display" class="stat-line">MC / Vol Ratio: <span class="stat-value">Loading...</span></p> <p id="total-volume-display" class="stat-line">Total Volume: <span class="stat-value">Loading...</span></p>
+        <p id="unique-holders-display" class="stat-line">Unique Holders: <span class="stat-value">Loading...</span></p>
+        <p id="listing-ratio-display" class="stat-line">Listing Ratio: <span class="stat-value">Loading...</span></p> </div>
 
     <p id="last-updated">Fetching latest data...</p>
     
