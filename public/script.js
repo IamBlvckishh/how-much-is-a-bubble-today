@@ -1,4 +1,4 @@
-// public/script.js - ADDED ROBUST DATE CHECK FOR 'LAST POP'
+// public/script.js - UPDATED: Stripped Last Pop & Two-Table Layout
 
 /**
  * Helper to format large numbers (Market Cap, Volume) as currency.
@@ -21,7 +21,6 @@ const formatCount = (count) => {
     if (isNaN(count)) return 'N/A';
     return count.toLocaleString('en-US');
 };
-
 
 /**
  * Helper to format the price change percentage and apply color class to the element.
@@ -58,27 +57,26 @@ async function fetchLatestPrice() {
     // Stat Displays
     const usdPriceDisplay = document.getElementById('usd-price');
     const ethPriceDisplay = document.getElementById('eth-price');
+    const marketCapDisplay = document.getElementById('market-cap-display');
     const volume24hDisplay = document.getElementById('volume-24h-display');
     const volumeTotalDisplay = document.getElementById('volume-total-display');
-    const marketCapDisplay = document.getElementById('market-cap-display');
+    const poppedDisplay = document.getElementById('popped-bubbles-display'); 
     const supplyDisplay = document.getElementById('total-supply-display'); 
     const holdersDisplay = document.getElementById('unique-holders-display'); 
-    const poppedDisplay = document.getElementById('popped-bubbles-display'); 
-    const lastPopDisplay = document.getElementById('last-pop-display'); 
     const updatedDisplay = document.getElementById('last-updated');
 
     // 1. Set Loading State
     usdPriceDisplay.textContent = '...';
     ethPriceDisplay.textContent = '...';
     document.getElementById('price-change-24h').textContent = '...';
-    volume24hDisplay.textContent = '24H Volume: ...';
-    volumeTotalDisplay.textContent = 'Total Volume: ...';
-    marketCapDisplay.textContent = 'Market Cap: ...';
-    supplyDisplay.textContent = 'Current Supply: ...'; 
-    holdersDisplay.textContent = 'Unique Holders: ...'; 
-    poppedDisplay.textContent = 'Total Popped: ...'; 
-    lastPopDisplay.textContent = 'Last Pop: ...'; 
+    marketCapDisplay.textContent = '...';
+    volume24hDisplay.textContent = '...';
+    volumeTotalDisplay.textContent = '...';
+    poppedDisplay.textContent = '...';
+    supplyDisplay.textContent = '...';
+    holdersDisplay.textContent = '...';
     updatedDisplay.textContent = 'Please wait...';
+
 
     try {
         const response = await fetch('/api/cron-update', { method: 'GET' });
@@ -103,48 +101,27 @@ async function fetchLatestPrice() {
             // 3. Display: 24h Change
             updatePriceChangeDisplay('price-change-24h', data.price_change_24h, '24h');
 
-            // 4. Display: 24H Volume
-            const formattedVolume24h = formatCurrency(data.volume_24h_usd); 
-            volume24hDisplay.textContent = 
-                `24H Volume: ${data.volume_24h} ${data.currency} (${formattedVolume24h})`;
-
-            // 5. Display: Total Volume
-            const formattedVolumeTotal = formatCurrency(data.volume_total_usd); 
-            volumeTotalDisplay.textContent = 
-                `Total Volume: ${data.volume_total} ${data.currency} (${formattedVolumeTotal})`;
-            
-            // 6. Display: Market Cap
+            // 4. Populate Table 1: Market Data
             const formattedMarketCap = formatCurrency(data.market_cap_usd);
             marketCapDisplay.textContent = 
-                `Market Cap: ${data.market_cap_eth} ${data.currency} (${formattedMarketCap})`;
-            
-            // 7. Display: Supply & Holders
-            supplyDisplay.textContent = `Current Supply: ${formatCount(data.supply)}`; 
-            holdersDisplay.textContent = `Unique Holders: ${formatCount(data.holders)}`; 
-            
-            // 8. Display: Popped Bubbles
-            poppedDisplay.textContent = `Total Popped: ${formatCount(data.popped)}`; 
+                `${data.market_cap_eth} ${data.currency} (${formattedMarketCap})`;
 
-            // 9. Display: Last Pop Time (ROBUST CHECK ADDED HERE)
-            let popTimeText = 'N/A';
-            const rawPopTime = data.last_pop_time;
+            const formattedVolume24h = formatCurrency(data.volume_24h_usd); 
+            volume24hDisplay.textContent = 
+                `${data.volume_24h} ${data.currency} (${formattedVolume24h})`;
 
-            if (rawPopTime && typeof rawPopTime === 'string' && rawPopTime.startsWith('20')) {
-                 // Attempt to parse only if the string looks like a date (starts with a year)
-                const date = new Date(rawPopTime);
-                if (!isNaN(date)) {
-                    popTimeText = date.toLocaleString();
-                } else {
-                    popTimeText = rawPopTime; // Show the raw string if parsing fails
-                }
-            } else {
-                popTimeText = rawPopTime; // Show N/A or any backend error message
-            }
+            const formattedVolumeTotal = formatCurrency(data.volume_total_usd); 
+            volumeTotalDisplay.textContent = 
+                `${data.volume_total} ${data.currency} (${formattedVolumeTotal})`;
             
-            lastPopDisplay.textContent = `Last Pop: ${popTimeText}`; 
-
-            // 10. Display: Last Updated Timestamp
+            // 5. Populate Table 2: Supply Data
+            poppedDisplay.textContent = formatCount(data.popped); 
+            supplyDisplay.textContent = formatCount(data.supply); 
+            holdersDisplay.textContent = formatCount(data.holders); 
+            
+            // 6. Display: Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
+
         } else {
              updatedDisplay.textContent = `Data not available.`;
         }
