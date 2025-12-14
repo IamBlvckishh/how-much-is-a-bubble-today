@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL CORE: All Advanced Metrics
+// api/cron-update.js - FINAL STABLE CORE: Data Extraction Failsafe
 
 // ----------------------------------------------------
 // ENVIRONMENT VARIABLES & CONFIGURATION
@@ -43,6 +43,19 @@ async function fetchContractSupply(nodeUrl) {
     }
 }
 
+/**
+ * Calculates the percentage change safely.
+ * @param {number} change - The absolute change in value.
+ * @param {number} previousValue - The value from the prior period.
+ * @returns {number} The percentage change, or 0 if calculation is impossible.
+ */
+function safePercentageChange(change, previousValue) {
+    if (previousValue > 0) {
+        return (change / previousValue) * 100;
+    }
+    return 0;
+}
+
 
 // --- Main Handler Function ---
 export default async function handler(req, res) {
@@ -76,23 +89,23 @@ export default async function handler(req, res) {
     const floorPriceValue = parseFloat(stats.floor_price) || 0;
     const totalVolumeValue = parseFloat(stats.volume) || 0; 
     const uniqueOwners = parseInt(stats.num_owners) || 0;
-    const listedCount = parseInt(stats.listed_count) || 0; // <<< NEW LISTED COUNT
+    // NOTE: listed_count is not documented in V2 stats, relying on custom field name.
+    const listedCount = parseInt(stats.listed_count) || 0; 
     const currency = stats.floor_price_symbol || 'ETH';
     
     // --- Price Changes & Average Price ---
     let priceChange24h = 0;
     let priceChange7d = 0;
-    let avgPrice24h = 0; // <<< NEW AVERAGE PRICE
+    let avgPrice24h = 0;
 
     if (data.intervals && data.intervals.length > 0) {
         // 24H Metrics
-        const interval24h = data.intervals.find(i => i.interval === 'one_day') || data.intervals[0];
-        const floorChange24h = parseFloat(interval24h.floor_price_change) || 0;
-        const previousFloor24h = parseFloat(interval24h.floor_price) || 0;
-        avgPrice24h = parseFloat(interval24h.average_price) || 0; // <<< AVERAGE PRICE EXTRACTED
-
-        if (previousFloor24h > 0) {
-            priceChange24h = (floorChange24h / previousFloor24h) * 100;
+        const interval24h = data.intervals.find(i => i.interval === 'one_day');
+        if (interval24h) {
+            const floorChange24h = parseFloat(interval24h.floor_price_change) || 0;
+            const previousFloor24h = parseFloat(interval24h.floor_price) || 0;
+            avgPrice24h = parseFloat(interval24h.average_price) || 0; 
+            priceChange24h = safePercentageChange(floorChange24h, previousFloor24h);
         }
 
         // 7D Metrics
@@ -100,16 +113,13 @@ export default async function handler(req, res) {
         if (interval7d) {
             const floorChange7d = parseFloat(interval7d.floor_price_change) || 0;
             const previousFloor7d = parseFloat(interval7d.floor_price) || 0;
-            if (previousFloor7d > 0) {
-                priceChange7d = (floorChange7d / previousFloor7d) * 100;
-            }
+            priceChange7d = safePercentageChange(floorChange7d, previousFloor7d);
         }
     }
     
     // 3. DETERMINE TOTAL SUPPLY 
     let totalSupply = contractSupply;
     if (totalSupply === 0) {
-        // Fallback for contract supply
         totalSupply = parseInt(stats.total_supply || uniqueOwners) || 0;
     }
     
@@ -117,10 +127,18 @@ export default async function handler(req, res) {
     const marketCapETH = floorPriceValue * totalSupply; 
 
     // Listing Ratio: Percentage of total supply listed for sale
-    const listingRatio = totalSupply > 0 ? (listedCount / totalSupply) * 100 : 0; // <<< NEW LISTING RATIO
+    let listingRatio = 0;
+    if (totalSupply > 0 && listedCount > 0) {
+        listingRatio = (listedCount / totalSupply) * 100; 
+    } else if (listedCount === 0 && uniqueOwners > 0) {
+        // If listed_count is 0 but there are owners, the API field is likely wrong or data is missing.
+        // We set to 0 and the frontend will show a clean 0%
+        listingRatio = 0;
+    }
+
 
     // Market Cap / Volume Ratio (Liquidity)
-    const mcVolumeRatio = totalVolumeValue > 0 ? marketCapETH / totalVolumeValue : 0; // <<< NEW MC/VOLUME RATIO
+    const mcVolumeRatio = totalVolumeValue > 0 ? marketCapETH / totalVolumeValue : 0; 
 
 
     // 5. PROCESS COINGECKO RESPONSE & CALCULATE USD Metrics
@@ -128,7 +146,7 @@ export default async function handler(req, res) {
     let floorPriceUSD = 'N/A';
     let marketCapUSD = 'N/A'; 
     let totalVolumeUSD = 'N/A';
-    let avgPriceUSD = 'N/A'; // <<< NEW AVERAGE PRICE USD
+    let avgPriceUSD = 'N/A';
 
     if (coinGeckoResponse.ok) {
         const cgData = await coinGeckoResponse.json();
@@ -146,7 +164,7 @@ export default async function handler(req, res) {
             totalVolumeUSD = (totalVolumeValue * ethUsdRate).toFixed(0); 
         }
         if (avgPrice24h > 0) {
-            avgPriceUSD = (avgPrice24h * ethUsdRate).toFixed(2); // <<< CALCULATE AVG PRICE USD
+            avgPriceUSD = (avgPrice24h * ethUsdRate).toFixed(2); 
         }
     }
     
@@ -154,8 +172,8 @@ export default async function handler(req, res) {
     const finalData = {
       price: floorPriceValue.toFixed(4), 
       usd: floorPriceUSD, 
-      avg_price_24h: avgPrice24h.toFixed(4), // <<< NEW AVG PRICE ETH
-      avg_price_usd: avgPriceUSD, // <<< NEW AVG PRICE USD
+      avg_price_24h: avgPrice24h.toFixed(4), 
+      avg_price_usd: avgPriceUSD, 
       currency: currency,
       market_cap_eth: marketCapETH.toFixed(2), 
       market_cap_usd: marketCapUSD,           
@@ -165,14 +183,14 @@ export default async function handler(req, res) {
       price_change_7d: priceChange7d.toFixed(2), 
       holders: uniqueOwners, 
       supply: totalSupply,
-      listed_count: listedCount, // <<< NEW LISTED COUNT
-      listing_ratio: listingRatio.toFixed(2), // <<< NEW LISTING RATIO
-      mc_volume_ratio: mcVolumeRatio.toFixed(2), // <<< NEW MC/VOLUME RATIO
+      listed_count: listedCount, 
+      listing_ratio: listingRatio.toFixed(2), 
+      mc_volume_ratio: mcVolumeRatio.toFixed(2), 
       lastUpdated: new Date().toISOString()
     };
 
     return res.status(200).json({ 
-        message: 'Data fetch successful (All Advanced Metrics).',
+        message: 'Data fetch successful (Final Metrics).',
         data: finalData
     });
 
