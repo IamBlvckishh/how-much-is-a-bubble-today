@@ -1,4 +1,4 @@
-// public/script.js - SIMPLIFIED METRICS: 7D Change Removed
+// public/script.js - ADDED LAST POP TIME
 
 /**
  * Helper to format large numbers (Market Cap, Volume) as currency.
@@ -28,7 +28,6 @@ const formatCount = (count) => {
  */
 const updatePriceChangeDisplay = (elementId, changeString, label) => {
     const changeDisplay = document.getElementById(elementId);
-    // If the element for the 7d change doesn't exist (because we removed it), stop.
     if (!changeDisplay) return; 
 
     const changeValue = parseFloat(changeString);
@@ -64,18 +63,21 @@ async function fetchLatestPrice() {
     const marketCapDisplay = document.getElementById('market-cap-display');
     const supplyDisplay = document.getElementById('total-supply-display'); 
     const holdersDisplay = document.getElementById('unique-holders-display'); 
+    const poppedDisplay = document.getElementById('popped-bubbles-display'); 
+    const lastPopDisplay = document.getElementById('last-pop-display'); // <<< NEW DISPLAY
     const updatedDisplay = document.getElementById('last-updated');
 
     // 1. Set Loading State
     usdPriceDisplay.textContent = '...';
     ethPriceDisplay.textContent = '...';
     document.getElementById('price-change-24h').textContent = '...';
-    // Removed 7d change loading state
     volume24hDisplay.textContent = '24H Volume: ...';
     volumeTotalDisplay.textContent = 'Total Volume: ...';
     marketCapDisplay.textContent = 'Market Cap: ...';
-    supplyDisplay.textContent = 'Total Supply: ...'; 
+    supplyDisplay.textContent = 'Current Supply: ...'; 
     holdersDisplay.textContent = 'Unique Holders: ...'; 
+    poppedDisplay.textContent = 'Total Popped: ...'; 
+    lastPopDisplay.textContent = 'Last Pop: ...'; // <<< NEW LOADING
     updatedDisplay.textContent = 'Please wait...';
 
     try {
@@ -98,7 +100,7 @@ async function fetchLatestPrice() {
             usdPriceDisplay.textContent = formattedUsdPrice;
             ethPriceDisplay.textContent = `(${data.price} ${data.currency})`;
 
-            // 3. Display: 24h Change (7D call is now removed)
+            // 3. Display: 24h Change
             updatePriceChangeDisplay('price-change-24h', data.price_change_24h, '24h');
 
             // 4. Display: 24H Volume
@@ -117,10 +119,20 @@ async function fetchLatestPrice() {
                 `Market Cap: ${data.market_cap_eth} ${data.currency} (${formattedMarketCap})`;
             
             // 7. Display: Supply & Holders
-            supplyDisplay.textContent = `Total Supply: ${formatCount(data.supply)}`; 
+            supplyDisplay.textContent = `Current Supply: ${formatCount(data.supply)}`; 
             holdersDisplay.textContent = `Unique Holders: ${formatCount(data.holders)}`; 
             
-            // 8. Display: Last Updated Timestamp
+            // 8. Display: Popped Bubbles
+            poppedDisplay.textContent = `Total Popped: ${formatCount(data.popped)}`; 
+
+            // 9. Display: Last Pop Time
+            let popTimeText = 'N/A';
+            if (data.last_pop_time && data.last_pop_time !== 'N/A') {
+                popTimeText = new Date(data.last_pop_time).toLocaleString();
+            }
+            lastPopDisplay.textContent = `Last Pop: ${popTimeText}`; // <<< NEW DISPLAY
+
+            // 10. Display: Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
         } else {
              updatedDisplay.textContent = `Data not available.`;
