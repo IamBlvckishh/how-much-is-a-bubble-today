@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL DEFINITIVE CORE: Multi-API Fix for Volume and Listed Count
+// api/cron-update.js - FINAL STABLE CORE: Sequential Fetching with Robust Fallbacks
 
 // ----------------------------------------------------
 // ENVIRONMENT VARIABLES & CONFIGURATION
@@ -11,11 +11,8 @@ const CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8";
 
 const ETH_NODE_URL = `https://shape-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`; 
 
-// V2 STATS: Best for intervals (24h/7d changes)
 const OPEN_SEA_V2_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`; 
-// V1 STATS: Best for total volume, listed count (more reliable fields)
 const OPEN_SEA_V1_STATS_URL = `https://api.opensea.io/api/v1/collection/${COLLECTION_SLUG}/stats`;
-
 const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; 
 
 // JSON-RPC Payload (remains the same)
@@ -64,69 +61,91 @@ export default async function handler(req, res) {
     return res.status(405).send({ message: 'Only GET or POST requests allowed' });
   }
   
+  if (!OPENSEA_API_KEY) {
+      return res.status(500).json({ message: "OpenSea API Key is missing. Check your Vercel Environment Variables." });
+  }
+
+  let finalData = {};
+  let ethUsdRate = 0;
+  let totalSupply = 0;
+  let v2Data = null;
+  let v1Data = null;
+
+
+  // STEP 1: Fetch ETH/USD Rate (Highest Priority)
   try {
-    if (!OPENSEA_API_KEY) {
-        throw new Error("OpenSea API Key is missing or blank.");
-    }
+      const cgResponse = await fetch(ETH_USD_CONVERSION_URL);
+      const cgData = await cgResponse.json();
+      ethUsdRate = cgData.ethereum.usd;
+  } catch (error) {
+      console.error("Failed to fetch CoinGecko USD rate. All USD values will be N/A.");
+  }
 
-    // 1. INITIATE CONCURRENT API CALLS 
-    const [v2Response, v1Response, coinGeckoResponse, contractSupply] = await Promise.all([
-        fetch(OPEN_SEA_V2_STATS_URL, {
-            method: 'GET',
-            headers: { 'accept': 'application/json', 'X-API-Key': OPENSEA_API_KEY }
-        }),
-        fetch(OPEN_SEA_V1_STATS_URL), // V1 doesn't require API key
-        fetch(ETH_USD_CONVERSION_URL),
-        fetchContractSupply(ETH_NODE_URL)
-    ]);
 
-    // 2. PROCESS OPENSEA RESPONSES
-    if (!v2Response.ok) throw new Error(`OpenSea V2 API error: ${v2Response.status}.`);
-    if (!v1Response.ok) throw new Error(`OpenSea V1 API error: ${v1Response.status}.`);
+  // STEP 2: Fetch Contract Supply
+  totalSupply = await fetchContractSupply(ETH_NODE_URL);
+
+
+  // STEP 3: Fetch OpenSea V2 Data (24h/7d Changes)
+  try {
+      const v2Response = await fetch(OPEN_SEA_V2_STATS_URL, {
+          method: 'GET',
+          headers: { 'accept': 'application/json', 'X-API-Key': OPENSEA_API_KEY }
+      });
+      if (v2Response.ok) {
+          v2Data = await v2Response.json();
+      } else {
+          console.error(`V2 API failed with status: ${v2Response.status}`);
+      }
+  } catch (error) {
+      console.error("Failed to fetch OpenSea V2 data:", error.message);
+  }
+
+
+  // STEP 4: Fetch OpenSea V1 Data (Total Supply, Listed Count Fallback)
+  try {
+      const v1Response = await fetch(OPEN_SEA_V1_STATS_URL); 
+      if (v1Response.ok) {
+          v1Data = await v1Response.json();
+      } else {
+          console.error(`V1 API failed with status: ${v1Response.status}`);
+      }
+  } catch (error) {
+      console.error("Failed to fetch OpenSea V1 data:", error.message);
+  }
+
+
+  // STEP 5: Aggregate and Calculate Metrics
+  try {
+    const v2Stats = v2Data?.total || {};
+    const v1Stats = v1Data?.stats || {};
     
-    const v2Data = await v2Response.json();
-    const v1Data = await v1Response.json();
-    const v2Stats = v2Data.total;
-    const v1Stats = v1Data.stats;
-    
-    // Extract Core Metrics from V2 (Floor, Holders)
-    const floorPriceValue = parseFloat(v2Stats.floor_price) || 0;
-    const uniqueOwners = parseInt(v2Stats.num_owners) || 0;
+    // Core Metrics
+    const floorPriceValue = parseFloat(v2Stats.floor_price || v1Stats.floor_price) || 0;
+    const uniqueOwners = parseInt(v2Stats.num_owners || v1Stats.num_owners) || 0;
     const currency = v2Stats.floor_price_symbol || 'ETH';
     
-    // Use V1 data for reliable Total Supply/Listed Count
-    const listedCount = parseInt(v1Stats.one_day_average_price) || 0; 
-    const listedCountV1 = parseInt(v1Stats.total_supply) - uniqueOwners; // Fallback: Total Supply - Owners (Approx)
-
-    // --- 24H VOLUME FIX ---
-    let totalVolumeValue = 0; // This will now be the 24H Volume
-    if (v2Data.intervals && v2Data.intervals.length > 0) {
-        const interval24h = v2Data.intervals.find(i => i.interval === 'one_day');
-        // V2 Volume is only the 24h volume!
-        totalVolumeValue = parseFloat(interval24h.volume) || 0; 
+    // Fallback Supply
+    if (totalSupply === 0) {
+        totalSupply = parseInt(v1Stats.total_supply || uniqueOwners) || 0;
     }
-    // Fallback to V1 24h volume if V2 interval volume is missing
-    if (totalVolumeValue === 0 && v1Stats.one_day_volume) {
-        totalVolumeValue = parseFloat(v1Stats.one_day_volume) || 0;
-    }
-
-
-    // --- Price Changes & Average Price ---
+    
+    // Price Changes & Average Price (from V2 intervals)
     let priceChange24h = 0;
     let priceChange7d = 0;
     let avgPrice24h = 0;
+    let totalVolumeValue = 0;
 
-    if (v2Data.intervals && v2Data.intervals.length > 0) {
-        // 24H Metrics
+    if (v2Data?.intervals && v2Data.intervals.length > 0) {
         const interval24h = v2Data.intervals.find(i => i.interval === 'one_day');
         if (interval24h) {
             const floorChange24h = parseFloat(interval24h.floor_price_change) || 0;
             const previousFloor24h = parseFloat(interval24h.floor_price) || 0;
             avgPrice24h = parseFloat(interval24h.average_price) || 0; 
             priceChange24h = safePercentageChange(floorChange24h, previousFloor24h);
+            totalVolumeValue = parseFloat(interval24h.volume) || 0; // V2 Interval Volume is 24H
         }
 
-        // 7D Metrics
         const interval7d = v2Data.intervals.find(i => i.interval === 'seven_day'); 
         if (interval7d) {
             const floorChange7d = parseFloat(interval7d.floor_price_change) || 0;
@@ -135,58 +154,34 @@ export default async function handler(req, res) {
         }
     }
     
-    // 3. DETERMINE TOTAL SUPPLY 
-    let totalSupply = contractSupply;
-    if (totalSupply === 0) {
-        // Fallback to V1 total_supply, which is more reliable than V2 num_owners
-        totalSupply = parseInt(v1Stats.total_supply || uniqueOwners) || 0;
+    // Volume Fallback (V1 24H volume)
+    if (totalVolumeValue === 0) {
+        totalVolumeValue = parseFloat(v1Stats.one_day_volume) || 0;
     }
-    
-    // 4. CALCULATE CUSTOM METRICS
+
+    // Listed Count Fix
+    const actualListedCount = parseInt(v1Stats.count) || 0; 
+
+    // CALCULATIONS
     const marketCapETH = floorPriceValue * totalSupply; 
-
-    // --- LISTING RATIO FIX ---
-    // The listed count from V1 or V2 is unreliable. We will use the V1 'count' which represents total items for sale
-    let actualListedCount = parseInt(v1Stats.count) || listedCount || 0; 
-
-    let listingRatio = 0;
-    if (totalSupply > 0 && actualListedCount > 0) {
-        listingRatio = (actualListedCount / totalSupply) * 100; 
-    }
-
-    // Market Cap / Volume Ratio (Liquidity)
+    let listingRatio = (totalSupply > 0 && actualListedCount > 0) ? (actualListedCount / totalSupply) * 100 : 0; 
     const mcVolumeRatio = totalVolumeValue > 0 ? marketCapETH / totalVolumeValue : 0; 
 
-
-    // 5. PROCESS COINGECKO RESPONSE & CALCULATE USD Metrics
-    let ethUsdRate = null;
+    // USD Conversions
     let floorPriceUSD = 'N/A';
     let marketCapUSD = 'N/A'; 
     let totalVolumeUSD = 'N/A';
     let avgPriceUSD = 'N/A';
 
-    if (coinGeckoResponse.ok) {
-        const cgData = await coinGeckoResponse.json();
-        ethUsdRate = cgData.ethereum.usd;
+    if (ethUsdRate > 0) {
+        if (floorPriceValue > 0) floorPriceUSD = (floorPriceValue * ethUsdRate).toFixed(2);
+        if (marketCapETH > 0) marketCapUSD = (marketCapETH * ethUsdRate).toFixed(0); 
+        if (totalVolumeValue > 0) totalVolumeUSD = (totalVolumeValue * ethUsdRate).toFixed(0); 
+        if (avgPrice24h > 0) avgPriceUSD = (avgPrice24h * ethUsdRate).toFixed(2); 
     }
     
-    if (ethUsdRate) {
-        if (floorPriceValue > 0) {
-            floorPriceUSD = (floorPriceValue * ethUsdRate).toFixed(2);
-        }
-        if (marketCapETH > 0) {
-            marketCapUSD = (marketCapETH * ethUsdRate).toFixed(0); 
-        }
-        if (totalVolumeValue > 0) {
-            totalVolumeUSD = (totalVolumeValue * ethUsdRate).toFixed(0); 
-        }
-        if (avgPrice24h > 0) {
-            avgPriceUSD = (avgPrice24h * ethUsdRate).toFixed(2); 
-        }
-    }
-    
-    // 6. CONSTRUCT FINAL RESPONSE
-    const finalData = {
+    // Final Data Construction
+    finalData = {
       price: floorPriceValue.toFixed(4), 
       usd: floorPriceUSD, 
       avg_price_24h: avgPrice24h.toFixed(4), 
@@ -194,25 +189,31 @@ export default async function handler(req, res) {
       currency: currency,
       market_cap_eth: marketCapETH.toFixed(2), 
       market_cap_usd: marketCapUSD,           
-      volume: totalVolumeValue.toFixed(2), // <<< NOW CORRECT 24H VOLUME
+      volume: totalVolumeValue.toFixed(2),
       volume_usd: totalVolumeUSD,          
       price_change_24h: priceChange24h.toFixed(2), 
       price_change_7d: priceChange7d.toFixed(2), 
       holders: uniqueOwners, 
       supply: totalSupply,
-      listed_count: actualListedCount, // <<< NOW CORRECTED LISTED COUNT
+      listed_count: actualListedCount, 
       listing_ratio: listingRatio.toFixed(2), 
       mc_volume_ratio: mcVolumeRatio.toFixed(2), 
       lastUpdated: new Date().toISOString()
     };
 
+    // If floor price is 0, something is seriously wrong
+    if (floorPriceValue === 0) {
+        return res.status(500).json({ message: "Failed to load core metrics (Floor Price is zero). Check OpenSea API Keys and rate limits.", data: finalData });
+    }
+
     return res.status(200).json({ 
-        message: 'Data fetch successful (Final Multi-API Metrics).',
+        message: 'Data fetch successful (Highly Stable Version).',
         data: finalData
     });
 
   } catch (error) {
-    console.error("Critical Error during data job:", error);
-    return res.status(500).json({ message: `Failed to fetch data: ${error.message}` });
+    console.error("CRITICAL AGGREGATION ERROR:", error);
+    // Return a 200 status with an error message in the data structure
+    return res.status(500).json({ message: `A critical internal error occurred during data processing: ${error.message}`, data: {} });
   }
 }
