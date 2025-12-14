@@ -1,4 +1,4 @@
-// public/script.js - SIMPLIFIED INITIALIZATION TO ENSURE DATA FETCH
+// public/script.js - ROBUST DATA POPULATION TO PREVENT CRASHES
 
 // =========================================================
 // STATS HELPER FUNCTIONS
@@ -7,12 +7,17 @@
 const formatCurrency = (numberString) => {
     if (numberString === 'N/A') return 'N/A';
     const num = parseFloat(numberString);
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(num);
+    // Use try/catch for formatting just in case the input is extremely malformed
+    try {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(num);
+    } catch {
+        return 'N/A';
+    }
 };
 
 const formatCount = (count) => {
@@ -24,7 +29,13 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
     const changeDisplay = document.getElementById(elementId);
     if (!changeDisplay) return 0;
 
-    const changeValue = parseFloat(changeString);
+    // Use try-catch here to ensure changeValue parsing doesn't crash the script
+    let changeValue;
+    try {
+        changeValue = parseFloat(changeString);
+    } catch {
+        changeValue = 0;
+    }
     
     changeDisplay.className = 'price-change-metric';
     
@@ -51,13 +62,13 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
 
 
 // =========================================================
-// ADDICTIVE MINI-GAME LOGIC
+// ADDICTIVE MINI-GAME LOGIC (No change in functionality)
 // =========================================================
 
 const POP_STORAGE_KEY = 'bubblePopCount';
 const MILESTONE = 100;
-const INITIAL_SIZE = 120; // Matches CSS
-const SIZE_DECREMENT = 0.5; // Size reduction per click (in pixels)
+const INITIAL_SIZE = 120;
+const SIZE_DECREMENT = 0.5;
 
 let userPops = 0;
 const popButton = document.getElementById('mini-bubble-btn');
@@ -78,13 +89,11 @@ function updateButtonSize() {
 
 function resetGame(keepPopping) {
     if (keepPopping) {
-        // YES: Keep total score, reset size for next round
-        updateButtonSize(); // Resets size back to INITIAL_SIZE
+        updateButtonSize();
         milestoneMessage.style.display = 'none';
         popButton.disabled = false;
         
     } else {
-        // NO: Reset everything (score and size)
         userPops = 0;
         localStorage.setItem(POP_STORAGE_KEY, userPops);
         popCountDisplay.textContent = formatCount(userPops);
@@ -113,14 +122,12 @@ function handlePop() {
     localStorage.setItem(POP_STORAGE_KEY, userPops);
     popCountDisplay.textContent = formatCount(userPops);
 
-    // Shrink and Energy Field Animation
     updateButtonSize();
     popButton.classList.add('energy-field');
     setTimeout(() => {
         popButton.classList.remove('energy-field');
     }, 200);
 
-    // Milestone Check
     if (userPops > 0 && userPops % MILESTONE === 0) {
         popButton.disabled = true; 
         showMilestoneMessage();
@@ -141,10 +148,9 @@ function showMilestoneMessage() {
 }
 
 
-// Attach the main handler
 if (popButton) {
     popButton.addEventListener('click', handlePop);
-    initializeGame(); // Call initialize on page load
+    initializeGame();
 }
 // =========================================================
 // END ADDICTIVE MINI-GAME LOGIC
@@ -152,9 +158,16 @@ if (popButton) {
 
 
 async function fetchLatestPrice() {
+    // Stat Displays (Ensure these IDs match your HTML exactly)
     const bubbleElement = document.getElementById('price-bubble');
     const usdPriceDisplay = document.getElementById('usd-price');
-    // ... (other displays)
+    const ethPriceDisplay = document.getElementById('eth-price');
+    const marketCapDisplay = document.getElementById('market-cap-display');
+    const volume24hDisplay = document.getElementById('volume-24h-display');
+    const volumeTotalDisplay = document.getElementById('volume-total-display');
+    const poppedDisplay = document.getElementById('popped-bubbles-display'); 
+    const supplyDisplay = document.getElementById('total-supply-display'); 
+    const holdersDisplay = document.getElementById('unique-holders-display'); 
     const updatedDisplay = document.getElementById('last-updated');
     const refreshButton = document.querySelector('.refresh-btn');
     const dynamicTitle = document.getElementById('dynamic-title');
@@ -167,36 +180,78 @@ async function fetchLatestPrice() {
     bubbleElement.style.opacity = '0.5';
 
     try {
-        // *** THE CRITICAL CALL TO YOUR API ENDPOINT ***
         const response = await fetch('/api/cron-update', { method: 'GET' });
         
         if (!response.ok) {
-            // Throw a specific error if the API endpoint returns a non-200 status
-            throw new Error(`API returned status ${response.status}. Check your serverless function code.`);
+            throw new Error(`API returned status ${response.status}. Check your serverless function.`);
         }
 
         const result = await response.json();
         
         if (result.data) {
-            // Success: Populate the data displays
             const data = result.data;
             
-            // ... (Your successful data population logic here, omitted for brevity)
-            usdPriceDisplay.textContent = parseFloat(data.usd).toLocaleString('en-US', {
+            // --- DATA POPULATION START ---
+            
+            // 1. USD Price (WORKING)
+            const formattedUsdPrice = parseFloat(data.usd || 0).toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
             });
-            // ... (rest of the stat updates)
+            usdPriceDisplay.textContent = formattedUsdPrice;
             
+            // 2. ETH Price (LIKELY WHERE THE CRASH HAPPENED)
+            // Use logical OR (|| 'N/A') to prevent crashing if data properties are missing.
+            ethPriceDisplay.textContent = `(${data.price || 'N/A'} ${data.currency || 'ETH'})`;
+
+            // 3. 24H Change
+            const changeValue = updatePriceChangeDisplay(
+                'price-change-24h', 
+                data.price_change_24h || 0, // Default to 0 if null/missing
+                '24h'
+            );
+            
+            // 4. Pulse Effect Logic
+            bubbleElement.classList.remove('pulse-up', 'pulse-down', 'pulse-neutral');
+            if (changeValue > 0.1) {
+                bubbleElement.classList.add('pulse-up');
+            } else if (changeValue < -0.1) {
+                bubbleElement.classList.add('pulse-down');
+            } else {
+                bubbleElement.classList.add('pulse-neutral');
+            }
+            
+            // 5. Populate Table 1: Market Data
+            const formattedMarketCap = formatCurrency(data.market_cap_usd || 0);
+            marketCapDisplay.textContent = 
+                `${data.market_cap_eth || 'N/A'} ${data.currency || 'ETH'} (${formattedMarketCap})`;
+
+            const formattedVolume24h = formatCurrency(data.volume_24h_usd || 0); 
+            volume24hDisplay.textContent = 
+                `${data.volume_24h || 'N/A'} ${data.currency || 'ETH'} (${formattedVolume24h})`;
+
+            const formattedVolumeTotal = formatCurrency(data.volume_total_usd || 0); 
+            volumeTotalDisplay.textContent = 
+                `${data.volume_total || 'N/A'} ${data.currency || 'ETH'} (${formattedVolumeTotal})`;
+            
+            // 6. Populate Table 2: Supply Data
+            poppedDisplay.textContent = formatCount(data.popped); 
+            supplyDisplay.textContent = formatCount(data.supply); 
+            holdersDisplay.textContent = formatCount(data.holders); 
+            
+            // 7. Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
+            
+            // --- DATA POPULATION END ---
+            
         } else {
              updatedDisplay.textContent = `Data format error or empty data.`;
         }
 
     } catch (error) {
         console.error("Fetch error:", error);
-        usdPriceDisplay.textContent = 'ERROR';
-        updatedDisplay.textContent = `Error fetching data: ${error.message}`;
+        usdPriceDisplay.textContent = 'FETCH ERROR';
+        updatedDisplay.textContent = `Critical Fetch Error: ${error.message}`;
         bubbleElement.classList.add('pulse-down'); 
     } finally {
         // Restore elements
@@ -207,5 +262,4 @@ async function fetchLatestPrice() {
 }
 
 // *** EXPLICITLY CALL THE FETCH FUNCTION ON LOAD ***
-// This is the core instruction to load the data.
 fetchLatestPrice();
