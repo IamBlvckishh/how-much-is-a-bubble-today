@@ -1,4 +1,4 @@
-// api/cron-update.js - FINAL FIXES: Corrected Initial Supply & Expanded Burn Search Range
+// api/cron-update.js - Final Fix: Alchemy Log Search using Custom 'Pop' Event Topic
 
 // ----------------------------------------------------
 // Caching Variables
@@ -12,19 +12,19 @@ const CACHE_DURATION_MS = 60000; // 60 seconds cache duration
 // ----------------------------------------------------
 const OPENSEA_API_KEY = process.env.OPENSEA_API_KEY; 
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY; 
+// const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY; // NO LONGER NEEDED
 
 const COLLECTION_SLUG = "bubbles-by-xcopy"; 
-const CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8"; 
-const INITIAL_SUPPLY = 2394770; // CORRECTED: The actual maximum token ID or concept supply value
+const BUBBLES_CONTRACT_ADDRESS = "0x45025cd9587206f7225f2f5f8a5b146350faf0a8"; // Target Contract
+const INITIAL_SUPPLY = 2394770; // CORRECTED: Initial supply value
 
 const ETH_NODE_URL = `https://shape-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`; 
 
 const OPEN_SEA_STATS_URL = `https://api.opensea.io/api/v2/collections/${COLLECTION_SLUG}/stats`;
 const ETH_USD_CONVERSION_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'; 
 
-// --- ETH/ERC-721 Event Signatures and Addresses ---
-const TRANSFER_EVENT_TOPIC = "0xddf252ad1be2c89b69c2b068fc378aa952ba7be494488d0d161a87693006649f";
-const BURN_ADDRESS_TOPIC = "0x0000000000000000000000000000000000000000000000000000000000000000"; 
+// --- CUSTOM POP EVENT SIGNATURE (Topic 0 for Pop(uint256, address)) ---
+const POP_EVENT_TOPIC = "0x1809090623f9976378e9b049d115e87a276188e7d8d217983050942d992982d6"; 
 
 
 // JSON-RPC Payload (for total supply, remains the same)
@@ -32,38 +32,37 @@ const TOTAL_SUPPLY_PAYLOAD = {
     jsonrpc: "2.0",
     id: 1,
     method: "eth_call",
-    params: [{ to: CONTRACT_ADDRESS, data: "0x18160ddd" }, "latest"]
+    params: [{ to: BUBBLES_CONTRACT_ADDRESS, data: "0x18160ddd" }, "latest"]
 };
 
 
 // ----------------------------------------------------
-// FUNCTION: Fetch Last Burn Event (Pop Time) - EXPANDED SEARCH
+// FUNCTION: Fetch Last Pop Time using Alchemy API, targeting the POP event
 // ----------------------------------------------------
-async function fetchLastBurnEvent(nodeUrl) {
+async function fetchLastPopEvent(nodeUrl) {
     if (!ALCHEMY_API_KEY) return 'N/A';
     
-    // Increased block search range: 500,000 blocks (~2 months) 
-    // This dramatically increases the chance of finding the latest burn.
-    const SEARCH_BLOCKS = 500000; 
+    // We will search a very wide window to ensure we catch a pop event.
+    // 2,000,000 blocks is about 8 months—a balance between success and API limits.
+    const SEARCH_BLOCKS = 2000000; 
 
     try {
         const currentBlock = await fetchBlockNumber(nodeUrl);
-        // Start searching from a point 500,000 blocks ago
         const fromBlock = "0x" + (currentBlock - SEARCH_BLOCKS).toString(16);
         const toBlock = "latest";
 
-        const BURN_LOG_PAYLOAD = {
+        // 
+
+        const POP_LOG_PAYLOAD = {
             jsonrpc: "2.0",
             id: 2,
             method: "eth_getLogs",
             params: [{
-                address: CONTRACT_ADDRESS,
+                address: BUBBLES_CONTRACT_ADDRESS,
                 fromBlock: fromBlock, 
                 toBlock: toBlock,
                 topics: [
-                    TRANSFER_EVENT_TOPIC, 
-                    null, 
-                    BURN_ADDRESS_TOPIC 
+                    POP_EVENT_TOPIC // Targeting the specific Pop event
                 ]
             }]
         };
@@ -71,19 +70,19 @@ async function fetchLastBurnEvent(nodeUrl) {
         const response = await fetch(nodeUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(BURN_LOG_PAYLOAD)
+            body: JSON.stringify(POP_LOG_PAYLOAD)
         });
         
         if (!response.ok) {
             console.error(`Alchemy log search failed: ${response.status}`);
-            return 'N/A';
+            return 'N/A (Alchemy Status Error)';
         }
         
         const json = await response.json();
         
         if (json.error) {
              console.error(`Alchemy log search error: ${json.error.message}`);
-             return 'N/A';
+             return 'N/A (Alchemy RPC Error)';
         }
         
         if (json.result && json.result.length > 0) {
@@ -91,14 +90,14 @@ async function fetchLastBurnEvent(nodeUrl) {
             const latestLog = json.result.reduce((prev, current) => 
                 (parseInt(prev.blockNumber, 16) > parseInt(current.blockNumber, 16)) ? prev : current);
 
-            // Fetch the timestamp of the block that contains the latest burn transaction
+            // Fetch the timestamp of the block
             const blockTimestamp = await fetchBlockTimestamp(nodeUrl, latestLog.blockHash);
             return blockTimestamp; 
         }
-        return 'N/A';
+        return 'N/A (No Pop Event Found in Range)';
     } catch (error) {
-        console.error("Critical error in fetchLastBurnEvent:", error.message);
-        return 'N/A';
+        console.error("Critical error in fetchLastPopEvent:", error.message);
+        return 'N/A (Critical Error)';
     }
 }
 
@@ -177,7 +176,7 @@ export default async function handler(req, res) {
   // If cache expired or empty, proceed with fetching data
   try {
     if (!OPENSEA_API_KEY || !ALCHEMY_API_KEY) {
-        throw new Error("API Key(s) are missing or blank.");
+        throw new Error("API Key(s) are missing or blank (requires OpenSea and Alchemy keys).");
     }
 
     // 2. INITIATE CONCURRENT API CALLS 
@@ -188,7 +187,7 @@ export default async function handler(req, res) {
         }),
         fetch(ETH_USD_CONVERSION_URL),
         fetchContractSupply(ETH_NODE_URL),
-        fetchLastBurnEvent(ETH_NODE_URL) 
+        fetchLastPopEvent(ETH_NODE_URL) // FIXED: Reverted to Alchemy, targeting Pop event
     ]);
 
     // 3. PROCESS OPENSEA STATS RESPONSE 
@@ -223,7 +222,7 @@ export default async function handler(req, res) {
         totalSupply = uniqueOwners;
     }
     
-    // --- CALCULATE POPPED BUBBLES (WITH CORRECTED INITIAL SUPPLY AND NEGATIVE GUARD) ---
+    // --- CALCULATE POPPED BUBBLES ---
     const poppedBubbles = Math.max(0, INITIAL_SUPPLY - totalSupply);
 
     // 5. CALCULATE MARKET CAP
