@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bubble Price Tracker</title>
+    <title>Bubble-price-tracker</title>
     <style>
-        /* BASE & LAYOUT */
+        /* General Black and White Theme */
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             text-align: center; 
             padding: 0; 
             margin: 0;
-            background-color: #000; /* Black background */
-            color: #fff; /* White text */
+            background-color: #000; 
+            color: #fff; 
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -20,29 +20,29 @@
             justify-content: center;
         }
 
-        .title {
-            color: #fff;
-            margin-bottom: 20px;
-        }
-
-        /* BUBBLE CONTAINER (THE CORE DESIGN) */
+        /* Bubble Container Styling */
         .bubble {
             width: 300px;
             height: 300px;
-            background: #fff; /* White circle background */
+            background: #fff; 
             border-radius: 50%;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); /* Subtle white glow */
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); 
             margin: 40px 0 20px 0; 
         }
 
-        /* FLOOR PRICE TEXT */
+        .title {
+            color: #fff;
+            margin-bottom: 20px;
+        }
+
+        /* Price Formatting */
         #usd-price-container {
             font-weight: bold;
-            color: #000; /* Black text inside the white bubble */
+            color: #000; 
             margin-bottom: 5px;
         }
         #usd-price { 
@@ -54,68 +54,53 @@
             display: block;
         }
 
-        /* PRICE CHANGE BAR (INSIDE BUBBLE) */
-        .price-change-bar {
+        /* 24H/7D CHANGE STYLING */
+        .change-container {
             display: flex;
-            gap: 10px;
-            margin: 10px 0;
+            gap: 15px;
+            margin-top: 10px;
+            margin-bottom: 10px;
         }
         .price-change-metric {
-            font-size: 0.9em;
+            font-size: 1.0em;
             font-weight: bold;
-            padding: 3px 8px;
-            border-radius: 4px;
+            /* Default color - will be overridden by script */
+            color: #000; 
         }
-        .change-up { background-color: #00C853; color: #fff; } /* Green */
-        .change-down { background-color: #D50000; color: #fff; } /* Red */
-        .change-neutral { background-color: #aaa; color: #000; } /* Grey */
+        .change-up { color: #00C853; } /* Green */
+        .change-down { color: #D50000; } /* Red */
+        .change-neutral { color: #333; } /* Grey */
 
         #eth-price-container {
             color: #333; 
             font-weight: bold;
             font-size: 1.5em; 
         }
-
-        /* SECONDARY STATS GRID (NEW CLEAN LAYOUT) */
-        .stats-grid-container {
-            padding: 20px;
+        
+        /* Stats Styling */
+        .stats-container {
+            margin-top: 20px;
+            padding: 10px;
+            border-top: 1px solid #333;
             width: 90%;
-            max-width: 600px;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        .stat-line {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #999;
+            margin-bottom: 15px;
+        }
+        
+        #last-updated { 
+            color: #999; 
+            font-size: 0.9em; 
             margin-top: 20px;
         }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr; /* Two equal columns */
-            gap: 20px 30px;
-            text-align: left;
-        }
-        .stat-group {
-            border-left: 3px solid #333;
-            padding-left: 10px;
-        }
-        .stat-label {
-            font-size: 0.8em;
-            color: #999;
-            margin-bottom: 2px;
-            text-transform: uppercase;
-        }
-        .stat-value {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #fff;
-        }
-        .stat-value-eth {
-            font-size: 0.9em;
-            color: #666;
-            display: block;
-        }
 
-        /* FOOTER/REFRESH */
-        #last-updated { 
-            color: #666; 
-            font-size: 0.9em; 
-            margin-top: 30px;
-        }
+        /* Button Styling */
         .refresh-btn {
             padding: 10px 20px;
             background: #000;
@@ -129,20 +114,6 @@
         .refresh-btn:hover {
             background: #222;
         }
-        
-        /* Responsive adjustments for the grid */
-        @media (max-width: 500px) {
-            .stats-grid {
-                grid-template-columns: 1fr; /* Single column on small screens */
-            }
-            .bubble {
-                width: 250px;
-                height: 250px;
-            }
-            #usd-price { 
-                font-size: 3em; 
-            }
-        }
     </style>
 </head>
 <body>
@@ -154,9 +125,9 @@
             <span id="usd-currency">USD</span>
         </div>
         
-        <div class="price-change-bar">
-            <div id="price-change-24h" class="price-change-metric change-neutral">...</div>
-            <div id="price-change-7d" class="price-change-metric change-neutral">...</div>
+        <div class="change-container">
+            <div id="price-change-24h" class="price-change-metric">Loading 24h...</div>
+            <div id="price-change-7d" class="price-change-metric">Loading 7d...</div>
         </div>
 
         <div id="eth-price-container">
@@ -164,48 +135,13 @@
         </div>
     </div>
     
-    <div class="stats-grid-container">
-        <div class="stats-grid">
-            
-            <div class="stat-group">
-                <p class="stat-label">Market Cap</p>
-                <span id="market-cap-usd-display" class="stat-value">Loading...</span>
-                <span id="market-cap-eth-display" class="stat-value-eth">Loading...</span>
-            </div>
-
-            <div class="stat-group">
-                <p class="stat-label">24H Volume</p>
-                <span id="total-volume-usd-display" class="stat-value">Loading...</span>
-                <span id="total-volume-eth-display" class="stat-value-eth">Loading...</span>
-            </div>
-
-            <div class="stat-group">
-                <p class="stat-label">24H Average Sale</p>
-                <span id="avg-price-display" class="stat-value">Loading...</span>
-                <span id="avg-price-eth-display" class="stat-value-eth">Loading...</span>
-            </div>
-            
-            <div class="stat-group">
-                <p class="stat-label">MC/Volume Ratio</p>
-                <span id="mc-volume-ratio-display" class="stat-value">Loading...</span>
-                <span class="stat-value-eth">Liquidity Indicator</span>
-            </div>
-            
-            <div class="stat-group">
-                <p class="stat-label">Total Supply</p>
-                <span id="total-supply-display" class="stat-value">Loading...</span>
-                <span id="listed-count-display" class="stat-value-eth">Listed: ...</span>
-            </div>
-            
-            <div class="stat-group">
-                <p class="stat-label">Unique Holders</p>
-                <span id="unique-holders-display" class="stat-value">Loading...</span>
-                <span id="listing-ratio-display" class="stat-value-eth">Listing Ratio: ...</span>
-            </div>
-
-        </div>
+    <div class="stats-container">
+        <p id="market-cap-display" class="stat-line">Market Cap: Loading...</p>
+        <p id="total-volume-display" class="stat-line">Total Volume: Loading...</p>
+        <p id="total-supply-display" class="stat-line">Total Supply: Loading...</p>
+        <p id="unique-holders-display" class="stat-line">Unique Holders: Loading...</p>
     </div>
-    
+
     <p id="last-updated">Fetching latest data...</p>
     
     <button class="refresh-btn" onclick="fetchLatestPrice()">Refresh Now</button>
