@@ -1,4 +1,4 @@
-// public/script.js - ADMIN MILESTONE EDITING LOGIC (Simplified Visibility)
+// public/script.js - MINI-BILLBOARD LOGIC WITH ADMIN EDITING
 
 // =========================================================
 // STATS HELPER FUNCTIONS (Unchanged)
@@ -47,7 +47,7 @@ const updatePriceChangeDisplay = (elementId, changeString, label) => {
     
     if (changeValue > 0) { 
         colorClass = 'change-up';
-    } else if (changeValue < 0) { 
+    } else if (changeValue < -0.1) { 
         colorClass = 'change-down';
     }
     
@@ -76,9 +76,11 @@ let isAdminMode = false;
 const popButton = document.getElementById('mini-bubble-btn');
 const popCountDisplay = document.getElementById('game-pop-count');
 const milestoneMessageDiv = document.getElementById('milestone-message');
+const milestoneDisplayText = document.getElementById('milestone-display-text'); // NEW ID
 const resetButton = document.getElementById('game-reset-btn');
 const adminToggle = document.getElementById('admin-toggle');
 const customInput = document.getElementById('milestone-text-input');
+const defaultMessage = "Thank you for popping 100 times! Do you want to keep poppin'?";
 
 
 /**
@@ -87,7 +89,10 @@ const customInput = document.getElementById('milestone-text-input');
 function saveCustomMessage() {
     if (customInput) {
         const message = customInput.value.trim();
-        localStorage.setItem(CUSTOM_MESSAGE_KEY, message);
+        // Fallback to default message if input is cleared
+        const messageToSave = message || defaultMessage;
+        localStorage.setItem(CUSTOM_MESSAGE_KEY, messageToSave);
+        console.log(`Milestone message saved: "${messageToSave}"`);
     }
 }
 
@@ -108,6 +113,8 @@ function toggleAdminMode() {
         adminToggle.style.borderColor = '#D50000';
         adminToggle.style.color = '#D50000';
         customInput.classList.add('admin-hidden'); // HIDES INPUT
+        // Save on closing the admin mode, just in case
+        saveCustomMessage();
     }
 }
 
@@ -124,11 +131,6 @@ function updateButtonSize() {
 
 
 function resetGame(keepPopping) {
-    // If admin mode is on and they hit YES/NO, save the latest custom message from the input
-    if (isAdminMode) {
-         saveCustomMessage();
-    }
-    
     if (keepPopping) {
         updateButtonSize();
         milestoneMessageDiv.style.display = 'none';
@@ -171,10 +173,9 @@ function initializeGame() {
     
     // 2. Load Custom Message (for initial input placeholder)
     const storedMessage = localStorage.getItem(CUSTOM_MESSAGE_KEY);
-    if (customInput && storedMessage) {
-        customInput.value = storedMessage;
-    } else if (customInput) {
-        customInput.value = `You hit a milestone! Do you want to keep popping?`;
+    if (customInput) {
+        // Set the input value to the stored message, or the default
+        customInput.value = storedMessage || defaultMessage;
     }
     
     // 3. Add Admin Activation Listener (listens for the 'admin' code)
@@ -185,7 +186,7 @@ function initializeGame() {
             buffer = buffer.slice(buffer.length - ADMIN_CODE.length);
         }
         if (buffer === ADMIN_CODE) {
-            if (adminToggle.style.display === 'none') {
+            if (adminToggle && adminToggle.style.display === 'none') {
                 adminToggle.style.display = 'block';
                 alert("Admin Toggle activated! Click the box to enable edit mode.");
             }
@@ -216,28 +217,18 @@ function handlePop() {
 
 
 /**
- * Displays the "Keep Poppin?" choice using the stored custom message.
- * This is what all users see.
+ * Displays the mini-billboard pop-up using the stored custom message.
  */
 function showMilestoneMessage() {
-    // 1. Get the current message from Local Storage (or the input field if it was just changed)
+    // Get the current message from Local Storage (or the input field if it was just changed)
     const savedMessage = localStorage.getItem(CUSTOM_MESSAGE_KEY);
-    // If a message is stored, use it. Otherwise, use the input value (which has a default).
-    const displayedMessage = savedMessage || customInput?.value || `You hit a milestone! Do you want to keep popping?`;
+    const displayedMessage = savedMessage || customInput?.value || defaultMessage;
 
-    // 2. Render the message and buttons
-    milestoneMessageDiv.innerHTML = `
-        <p>${displayedMessage}</p>
-        <div class="milestone-buttons">
-            <button id="milestone-yes">YES (Continue)</button>
-            <button id="milestone-no">NO (Stop/Reset)</button>
-        </div>
-    `;
+    // Set the text inside the pop-up
+    milestoneDisplayText.textContent = displayedMessage;
+
+    // Show the pop-up
     milestoneMessageDiv.style.display = 'flex';
-
-    // 3. Attach handlers
-    document.getElementById('milestone-yes').onclick = () => resetGame(true);
-    document.getElementById('milestone-no').onclick = () => resetGame(false);
 }
 
 
@@ -252,7 +243,7 @@ if (adminToggle) {
     adminToggle.addEventListener('click', toggleAdminMode);
 }
 
-// Save message on keyup when admin mode is active (and only when active)
+// Save message on keyup when admin mode is active
 if (customInput) {
     customInput.addEventListener('keyup', () => {
         if (isAdminMode) {
