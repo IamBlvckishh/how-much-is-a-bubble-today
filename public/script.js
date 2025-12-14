@@ -1,9 +1,7 @@
-// public/script.js - Optimized for Market Cap, Volume, and 24h Change Display
+// public/script.js - FINAL: Optimized for All Advanced Metrics
 
 /**
- * Helper to format large numbers (Market Cap, Volume) as currency (e.g., $1,250,000)
- * @param {string} numberString - The USD value string.
- * @returns {string} Formatted currency string.
+ * Helper to format large numbers (Market Cap, Volume) as currency.
  */
 const formatCurrency = (numberString) => {
     if (numberString === 'N/A') return 'N/A';
@@ -17,50 +15,75 @@ const formatCurrency = (numberString) => {
 };
 
 /**
- * Helper to format the 24h price change and apply color class.
- * @param {string} changeString - The percentage change string from the API.
+ * Helper to format the unique holder/supply counts.
  */
-const updatePriceChangeDisplay = (changeString) => {
-    const changeDisplay = document.getElementById('price-change-24h');
+const formatCount = (count) => {
+    if (isNaN(count)) return 'N/A';
+    return count.toLocaleString('en-US');
+};
+
+
+/**
+ * Helper to format the price change percentage and apply color class to the element.
+ * @param {string} elementId - The ID of the HTML element to update ('price-change-24h' or 'price-change-7d').
+ * @param {string} changeString - The percentage change string from the API.
+ * @param {string} label - The label to display (e.g., '24h' or '7d').
+ */
+const updatePriceChangeDisplay = (elementId, changeString, label) => {
+    const changeDisplay = document.getElementById(elementId);
     const changeValue = parseFloat(changeString);
     
-    // Clear previous classes
-    changeDisplay.className = '';
+    changeDisplay.className = 'price-change-metric';
     
-    if (isNaN(changeValue)) {
-        changeDisplay.textContent = 'N/A';
+    if (isNaN(changeValue) || changeValue === 0) {
+        changeDisplay.textContent = `N/A (${label})`;
         changeDisplay.classList.add('change-neutral');
         return;
     }
     
-    // Determine the sign and color class
     const sign = changeValue > 0 ? '+' : '';
     let colorClass = 'change-neutral';
     
-    if (changeValue > 0.05) { // Threshold for "up"
+    if (changeValue > 0.05) { 
         colorClass = 'change-up';
-    } else if (changeValue < -0.05) { // Threshold for "down"
+    } else if (changeValue < -0.05) { 
         colorClass = 'change-down';
     }
     
-    changeDisplay.textContent = `${sign}${changeValue.toFixed(2)}% (24h)`;
+    changeDisplay.textContent = `${sign}${changeValue.toFixed(2)}% (${label})`;
     changeDisplay.classList.add(colorClass);
 };
 
 
 async function fetchLatestPrice() {
+    // Floor Price Displays
     const usdPriceDisplay = document.getElementById('usd-price');
     const ethPriceDisplay = document.getElementById('eth-price');
-    const marketCapDisplay = document.getElementById('market-cap-display');
-    const volumeDisplay = document.getElementById('total-volume-display');
+    const avgPriceDisplay = document.getElementById('avg-price-display'); // <<< NEW AVG PRICE
+
+    // Advanced Stats Displays
+    const marketCapDisplay = document.getElementById('market-cap-display').querySelector('.stat-value');
+    const volumeDisplay = document.getElementById('total-volume-display').querySelector('.stat-value');
+    const supplyDisplay = document.getElementById('total-supply-display').querySelector('.stat-value');
+    const holdersDisplay = document.getElementById('unique-holders-display').querySelector('.stat-value');
+    const listingRatioDisplay = document.getElementById('listing-ratio-display').querySelector('.stat-value'); // <<< NEW LISTING RATIO
+    const mcVolumeRatioDisplay = document.getElementById('mc-volume-ratio-display').querySelector('.stat-value'); // <<< NEW MC/VOL RATIO
+
     const updatedDisplay = document.getElementById('last-updated');
 
-    // 1. Set Loading State
+    // 1. Set Loading State (briefly, as the API is fast)
     usdPriceDisplay.textContent = '...';
     ethPriceDisplay.textContent = '...';
+    avgPriceDisplay.textContent = '...';
     document.getElementById('price-change-24h').textContent = '...';
-    marketCapDisplay.textContent = 'Market Cap: ...';
-    volumeDisplay.textContent = 'Total Volume: ...';
+    document.getElementById('price-change-7d').textContent = '...';
+    
+    marketCapDisplay.textContent = '...';
+    volumeDisplay.textContent = '...';
+    supplyDisplay.textContent = '...';
+    holdersDisplay.textContent = '...';
+    listingRatioDisplay.textContent = '...';
+    mcVolumeRatioDisplay.textContent = '...';
     updatedDisplay.textContent = 'Please wait...';
 
     try {
@@ -75,44 +98,51 @@ async function fetchLatestPrice() {
         if (result.data) {
             const data = result.data;
 
-            // Format USD floor price
+            // 2. Display: Floor Price
             const formattedUsdPrice = parseFloat(data.usd).toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
             });
-
-            // 2. Display: Floor Price
             usdPriceDisplay.textContent = formattedUsdPrice;
             ethPriceDisplay.textContent = `(${data.price} ${data.currency})`;
 
-            // 3. Display: 24h Change
-            updatePriceChangeDisplay(data.price_change_24h);
+            // 3. Display: Average Price
+            const formattedAvgPrice = parseFloat(data.avg_price_usd).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+            avgPriceDisplay.textContent = `${formattedAvgPrice} USD (${data.avg_price_24h} ${data.currency})`;
 
-            // 4. Display: Market Cap
+
+            // 4. Display: 24h & 7d Change
+            updatePriceChangeDisplay('price-change-24h', data.price_change_24h, '24h');
+            updatePriceChangeDisplay('price-change-7d', data.price_change_7d, '7d'); 
+
+            // 5. Display: Market Cap & Volume
             const formattedMarketCap = formatCurrency(data.market_cap_usd);
-            marketCapDisplay.textContent = 
-                `Market Cap: ${data.market_cap_eth} ${data.currency} (${formattedMarketCap})`;
+            marketCapDisplay.textContent = `${data.market_cap_eth} ${data.currency} (${formattedMarketCap})`;
             
-            // 5. Display: Volume
             const formattedVolume = formatCurrency(data.volume_usd); 
-            volumeDisplay.textContent = 
-                `Total Volume: ${data.volume} ${data.currency} (${formattedVolume})`;
+            volumeDisplay.textContent = `${data.volume} ${data.currency} (${formattedVolume})`;
             
-            // 6. Display: Last Updated Timestamp
+            // 6. Display: Supply & Holders
+            supplyDisplay.textContent = formatCount(data.supply);
+            holdersDisplay.textContent = formatCount(data.holders);
+
+            // 7. Display: NEW Calculated Metrics
+            listingRatioDisplay.textContent = `${data.listed_count.toLocaleString()} (${data.listing_ratio}%)`;
+            mcVolumeRatioDisplay.textContent = data.mc_volume_ratio;
+            
+            // 8. Display: Last Updated Timestamp
             updatedDisplay.textContent = `Last Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
         } else {
-            usdPriceDisplay.textContent = 'No Data';
-            ethPriceDisplay.textContent = 'No Data';
+             updatedDisplay.textContent = `Data not available.`;
         }
 
     } catch (error) {
-        console.error("Error loading data:", error);
+        console.error("Fetch error:", error);
         usdPriceDisplay.textContent = 'ERROR';
-        ethPriceDisplay.textContent = '...';
-        document.getElementById('price-change-24h').textContent = 'ERROR';
-        marketCapDisplay.textContent = 'Market Cap: ERROR';
-        volumeDisplay.textContent = 'Total Volume: ERROR';
-        updatedDisplay.textContent = 'Error loading data. Try refreshing.';
+        updatedDisplay.textContent = `Error fetching data: ${error.message}`;
     }
 }
 
